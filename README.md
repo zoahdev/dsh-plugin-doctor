@@ -21,6 +21,7 @@ It works in two ways:
 | `files` | a `files` allowlist is declared | ✅ |
 | `build` | `pnpm run build` succeeds | `--build` |
 | `pack` + `install` + `config` | `pnpm pack`, install into a fresh `DSH_HOME` profile, and confirm the plugin id in `--dump-config` | `--full` |
+| `profile-shadow` | a dsh profile has no real-directory `@deepseek-ai/*` copy shadowing the host instance (discussion #1697) | `--profile <dir>` |
 
 Exit code is `0` when nothing failed, `1` otherwise. `--json` prints a machine-readable report for CI.
 
@@ -31,6 +32,7 @@ npx dsh-plugin-doctor .                 # quick checks on the current directory
 npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor --json ./my-plugin
+npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile-level host-shadowing tripwire
 npx dsh-plugin-doctor --help
 ```
 
@@ -47,7 +49,7 @@ Install the plugin into a DeepSeek Harness profile:
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # from npm
 # or from a local build:
-dsh plugin --profile web add ./dsh-plugin-doctor-1.1.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.2.0.tgz
 ```
 
 Then ask the agent inside DSH:
@@ -73,6 +75,7 @@ This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-pl
 - pnpm can silently link an older RC into a plugin's peer slot, and "loads fine" does not mean "works" (see the [template](https://github.com/zoahdev/dsh-plugin-template) runtime guard and [troubleshooting](https://github.com/zoahdev/dsh-plugin-template#troubleshooting)).
 - A repeatable local check (manifest → build → install → config) catches the failures that only show up on other people's machines.
 - The `dsh web` boot step currently runs on Windows in CI because the upstream npm CLI lacks the linux-x64 `pty.node` prebuild ([discussion #1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)); doctor's install/config verification is platform-independent.
+- A profile-hoisted real-directory copy of `@deepseek-ai/dsh-tools` can shadow the host instance and crash every tool call ([discussion #1697](https://github.com/deepseek-ai/deepseek-harness/discussions/1697)); `--profile` flags exactly that precondition before anything boots.
 
 ### CI
 
@@ -115,6 +118,7 @@ MIT © 2026 zoahdev
 | `files` | 声明了 `files` 白名单 | ✅ |
 | `build` | `pnpm run build` 成功 | `--build` |
 | `pack`+`install`+`config` | `pnpm pack`，装进全新 `DSH_HOME` profile，并在 `--dump-config` 里确认插件 id | `--full` |
+| `profile-shadow` | dsh profile 顶层没有真实目录形式的 `@deepseek-ai/*` 副本遮蔽宿主实例（讨论 #1697） | `--profile <dir>` |
 
 退出码：全部通过为 `0`，否则为 `1`。`--json` 输出机器可读报告，方便接入 CI。
 
@@ -125,6 +129,7 @@ npx dsh-plugin-doctor .                 # 对当前目录做快速检查
 npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor --json ./my-plugin
+npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile 级宿主遮蔽 tripwire
 npx dsh-plugin-doctor --help
 ```
 
@@ -141,7 +146,7 @@ node lib/bin.js --full ./my-plugin
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # 从 npm 安装
 # 或本地构建产物：
-dsh plugin --profile web add ./dsh-plugin-doctor-1.1.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.2.0.tgz
 ```
 
 然后在 DSH 里直接对 agent 说：
@@ -166,6 +171,7 @@ agent 会调用 `plugin_check` 工具（参数 `dir`，可选 `build`/`full`）�
 - pnpm 可能把旧 RC 静默链进插件的 peer 槽；"能加载"不等于"能用"（参见[模板](https://github.com/zoahdev/dsh-plugin-template)的运行时守卫与[故障排查](https://github.com/zoahdev/dsh-plugin-template#troubleshooting)）。
 - 本地可重复检查（manifest → build → 安装 → 配置）能提前抓出只在别人机器上才会爆的错。
 - 因为上游 npm CLI 目前缺 linux-x64 的 `pty.node` 预编译（[#1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)），`dsh web` 启动冒烟在 CI 的 Windows runner 上执行；doctor 的安装/配置验证与平台无关。
+- profile 顶层若出现真实目录形式的 `@deepseek-ai/dsh-tools` 副本，会遮蔽宿主实例并让每次工具调用崩溃（[#1697](https://github.com/deepseek-ai/deepseek-harness/discussions/1697)）；`--profile` 在启动前就能把这个前置条件抓出来。
 
 ### CI
 
