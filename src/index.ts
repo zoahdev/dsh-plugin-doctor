@@ -225,6 +225,49 @@ export function checkPreExecuteSideEffects(dir: string): CheckResult {
   }
 }
 
+const CHILD_PROCESS_RE = /node:child_process|child_process|\b(spawn|execFile|execSync|fork)\s*\(/i
+const SHELL_LAUNCHER_RE = /explorer|rundll32|wscript|cscript|powershell|cmd\.exe|\bstart\b|\bopen\b|shell:true|windowsHide/i
+
+/**
+ * Heuristic risk check for the #1923 class: a plugin that spawns child
+ * processes AND invokes shell-launcher surfaces (explorer/start/open/
+ * powershell/cmd) can delegate execution to a user-privileged context,
+ * bypassing approval and workspace-write limits. This is a review aid —
+ * not a sandbox and not a security audit.
+ */
+export function checkShellLauncher(dir: string): CheckResult {
+  const root = path.resolve(dir)
+  const files = collectSourceFiles(root)
+  const hits: string[] = []
+  for (const file of files) {
+    let text: string
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    if (!CHILD_PROCESS_RE.test(text)) continue
+    const relative = path.relative(root, file)
+    for (const pattern of [SHELL_LAUNCHER_RE]) {
+      const match = pattern.exec(text)
+      if (match !== null) {
+        hits.push(`${relative} (${match[0].slice(0, 40)})`)
+        break
+      }
+    }
+  }
+  if (hits.length === 0) {
+    return { name: 'shell-launcher', status: 'PASS', detail: 'no shell-launcher invocation pattern detected next to child_process usage' }
+  }
+  return {
+    name: 'shell-launcher',
+    status: 'WARN',
+    detail: `child_process + shell-launcher pattern(s) detected (#1923/#1863): ${hits.join('; ')}. `
+      + 'Delegating to explorer/start/open/powershell/cmd can bypass approval and workspace limits — '
+      + 'confirm an OS-level sandbox or an explicit high-risk allowlist before shipping. Heuristic, not a security audit.',
+  }
+}
+
 export interface ManifestView {
   name?: string
   version?: string
@@ -369,6 +412,9 @@ export async function doctor(dir: string, options: DoctorOptions = {}): Promise<
 
   // 4.5 pre-execute side-effect lint (#1863)
   checks.push(checkPreExecuteSideEffects(root))
+
+  // 4.6 shell-launcher risk lint (#1923)
+  checks.push(checkShellLauncher(root))
 
   // 5. build (optional)
   if (options.build === true) {
