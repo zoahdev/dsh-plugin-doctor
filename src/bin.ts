@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { parseArgs } from 'node:util'
+import { explainEnvKey, formatEnvExplain } from './env-explain.js'
 import { checkEnvironment, formatEnvReport } from './env.js'
 import {
   checkEntryPoints,
@@ -43,6 +44,23 @@ Options:
   --help        show this help
 `)
   process.exit(0)
+}
+
+if (positionals[0] === 'env' && positionals[1] === 'explain') {
+  const key = positionals[2]
+  if (key === undefined || key === '') {
+    console.error('usage: dsh-plugin-doctor env explain <KEY> [--profile <dir>] [--json]')
+    process.exit(2)
+  }
+  const report = explainEnvKey(key, values.profile !== undefined && values.profile !== ''
+    ? { cwd: values.profile }
+    : {})
+  if (values.json) {
+    console.log(JSON.stringify(report, null, 2))
+  } else {
+    console.log(formatEnvExplain(report))
+  }
+  process.exit(report.resolved ? 0 : 1)
 }
 
 if (values.env) {
