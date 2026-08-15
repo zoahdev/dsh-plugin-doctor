@@ -9,6 +9,8 @@
 
 import { spawn } from 'node:child_process'
 import { createConnection } from 'node:net'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 export interface EnvCheckResult {
   name: string
@@ -63,6 +65,42 @@ function isPortFree(port: number, timeoutMs: number): Promise<boolean> {
 }
 
 /**
+ * Windows-only check: can the default `/bin/bash` (used by the official
+ * minimal preset) actually resolve? node-pty passes argv[0] straight to
+ * CreateProcess, which does not PATH-search slash-prefixed paths, so the
+ * default shellPath fails on Windows unless a real bash is configured
+ * (discussion #1856).
+ */
+export function checkWinBash(): EnvCheckResult {
+  if (process.platform !== 'win32') {
+    return { name: 'win-bash', status: 'PASS', detail: 'n/a (non-Windows platform)' }
+  }
+  const candidates: string[] = []
+  for (const dir of (process.env.PATH ?? '').split(';')) {
+    if (dir !== '') candidates.push(join(dir, 'bash.exe'), join(dir, 'bash'))
+  }
+  for (const root of [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], process.env.LOCALAPPDATA]) {
+    if (root !== undefined) {
+      candidates.push(join(root, 'Git', 'bin', 'bash.exe'), join(root, 'Programs', 'Git', 'bin', 'bash.exe'))
+    }
+  }
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(candidate)) {
+        return { name: 'win-bash', status: 'PASS', detail: `bash resolved: ${candidate}` }
+      }
+    } catch { /* unreadable */ }
+  }
+  return {
+    name: 'win-bash',
+    status: 'FAIL',
+    detail: 'Windows bash not found on PATH or in Git for Windows locations. '
+      + 'The official minimal preset defaults to /bin/bash, which cannot resolve on Windows (discussion #1856): '
+      + 'install Git for Windows or WSL, or set terminal-bash.shellPath to an absolute bash.exe path.',
+  }
+}
+
+/**
  * Run environment diagnostics.
  * @param port - Web UI port to probe (default 3080).
  * @param timeoutMs - per-command timeout in milliseconds.
@@ -99,6 +137,8 @@ export async function checkEnvironment(port = 3080, timeoutMs = 10_000): Promise
     status: free ? 'PASS' : 'FAIL',
     detail: free ? `port ${port} is free` : `port ${port} is already in use (another dsh web instance running?)`,
   })
+
+  checks.push(checkWinBash())
 
   return checks
 }
