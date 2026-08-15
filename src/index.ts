@@ -150,7 +150,9 @@ const PRE_EXECUTE_RE = new RegExp("(['\"]pre[_-]?execute['\"]|\\.pre[_-]?execute
 /** Heuristic: host-level side-effect APIs that must not run before approval. */
 const SIDE_EFFECT_RE = [
   /node:child_process|child_process/,
-  /\b(spawn|execFile|fork|exec)\s*\(/,
+  // Bare `exec(` is too broad: node:sqlite's DatabaseSync.exec(...) and
+  // similar SQL/DSL methods would false-positive (see dsh-mneme report #1928).
+  /\b(spawn|execFile|execSync|fork)\s*\(/,
   /node:fs|\b(writeFile|writeFileSync|appendFile|createWriteStream|unlinkSync|rmSync|renameSync)\s*\(/,
   /\b(fetch|http\.request|https\.request|net\.connect|createConnection)\s*\(/,
 ]
