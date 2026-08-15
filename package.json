@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-doctor",
-  "version": "1.2.0",
-  "description": "Health checks for DeepSeek Harness plugins: manifest structure, patch validity, entry points, build, pack, a real dsh install/config smoke test, a model-callable plugin_check tool, and profile host-shadowing detection.",
+  "version": "1.3.0",
+  "description": "Health checks for DeepSeek Harness: plugin manifest/patch/entry/build/pack/install verification, model-callable plugin_check, profile host-shadowing detection, and environment diagnostics (node/pnpm/dsh PATH, web port).",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
