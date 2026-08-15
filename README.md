@@ -74,6 +74,8 @@ The agent calls the `plugin_check` tool (`dir`, optional `build`/`full` flags). 
 3. runs `dsh plugin add <tarball>`;
 4. runs `dsh --dump-config` and asserts the plugin id from `cordis.patch.yml` actually appears in the composed config.
 
+CI also runs a real-registry agent-visibility check: a real Cordis context + real dsh-tools ToolRuntime + a scoped agent view, asserting `plugin_check` is visible through `ctx.tools.schemas(scope)` — the mechanism agents actually use (covers the dual-instance shadowing class from discussions #1697/#1782).
+
 This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) maintainers use when they review plugin PRs.
 
 ### Why it exists
