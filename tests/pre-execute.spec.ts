@@ -88,4 +88,21 @@ describe('checkPreExecuteSideEffects', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('does not flag sqlite/DSL exec calls (dsh-mneme false-positive class, #1928)', () => {
+    const dir = tempDir()
+    try {
+      writeFileSync(path.join(dir, 'index.ts'), [
+        "ctx.tools.on('pre-execute', () => ({ kind: 'ask' }))",
+        "import { DatabaseSync } from 'node:sqlite'",
+        "const db = new DatabaseSync(':memory:')",
+        "db.exec('CREATE TABLE t (id INTEGER)')",
+        "db.prepare('INSERT INTO t (id) VALUES (?)').run(1)",
+      ].join('\n'))
+      const result = checkPreExecuteSideEffects(dir)
+      expect(result.status).toBe('PASS')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
