@@ -42,3 +42,5 @@ jobs:
           node lib/bin.js --env --port 31234 --json | grep -q '"port-31234"'
       - name: Full doctor self-check (pack → fresh DSH_HOME profile → dsh plugin add → dump-config)
         run: node lib/bin.js --full .
+      - name: Preflight alias smoke
+        run: node lib/bin.js preflight . | grep -q 'ALL CHECKS PASSED'
