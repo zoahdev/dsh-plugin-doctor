@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-doctor",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Health checks for DeepSeek Harness: plugin manifest/patch/entry/build/pack/install verification, model-callable plugin_check, profile host-shadowing + manifest-BOM detection, and environment diagnostics (node/pnpm/dsh PATH, web port).",
   "type": "module",
   "main": "lib/index.js",
@@ -29,7 +29,7 @@
     "build": "tsc -p tsconfig.json",
     "prepare": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --no-file-parallelism",
     "test:contract": "node scripts/doctor-contract-check.mjs --impl1 \"node lib/bin.js\"",
     "test:integration": "node scripts/plugin-smoke.mjs"
   },
