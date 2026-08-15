@@ -36,6 +36,7 @@ npx dsh-plugin-doctor .                 # quick checks on the current directory
 npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor preflight ./my-plugin       # alias: build + full pipeline (discussion #1774)
+npx dsh-plugin-doctor check ./my-plugin           # same pipeline; matches the proposed `dsh plugin check` surface (RFC #1846)
 npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile tripwire: host-shadowing + manifest BOM
 npx dsh-plugin-doctor --env                            # environment diagnostics (node/pnpm/dsh PATH, port 3080)
@@ -145,6 +146,7 @@ npx dsh-plugin-doctor .                 # 对当前目录做快速检查
 npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor preflight ./my-plugin       # 别名：build + 全链路（讨论 #1774）
+npx dsh-plugin-doctor check ./my-plugin           # 同 pipeline；对应 RFC #1846 的 `dsh plugin check` 命名
 npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile 级宿主遮蔽 tripwire
 npx dsh-plugin-doctor --env                            # 环境诊断（node/pnpm/dsh PATH、3080 端口）
