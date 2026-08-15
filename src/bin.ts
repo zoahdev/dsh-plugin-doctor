@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { parseArgs } from 'node:util'
-import { doctor, formatReport } from './index.js'
+import { checkProfileShadowing, doctor, formatReport } from './index.js'
 
 const { values, positionals } = parseArgs({
   options: {
@@ -9,6 +9,7 @@ const { values, positionals } = parseArgs({
     full: { type: 'boolean', default: false },
     json: { type: 'boolean', default: false },
     timeout: { type: 'string', default: '120000' },
+    profile: { type: 'string', default: '' },
     help: { type: 'boolean', default: false },
   },
   allowPositionals: true,
@@ -24,9 +25,21 @@ Options:
   --full        also pack, install into a temp dsh profile, and verify config
   --json        output machine-readable JSON
   --timeout N   command timeout in ms (default 120000)
+  --profile P   check a dsh profile for host-shadowing @deepseek-ai copies
   --help        show this help
 `)
   process.exit(0)
+}
+
+if (values.profile !== undefined && values.profile !== '') {
+  const check = checkProfileShadowing(values.profile)
+  const report = { ok: check.status !== 'FAIL', checks: [check] }
+  if (values.json) {
+    console.log(JSON.stringify(report, null, 2))
+  } else {
+    console.log(formatReport(report))
+  }
+  process.exit(report.ok ? 0 : 1)
 }
 
 const dir = positionals[0] ?? '.'
