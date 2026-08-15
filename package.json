@@ -30,6 +30,7 @@
     "prepare": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:contract": "node scripts/doctor-contract-check.mjs --impl1 \"node lib/bin.js\"",
     "test:integration": "node scripts/plugin-smoke.mjs"
   },
   "keywords": [
