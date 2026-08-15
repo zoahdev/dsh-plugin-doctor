@@ -2,7 +2,7 @@
 
 import { parseArgs } from 'node:util'
 import { checkEnvironment, formatEnvReport } from './env.js'
-import { checkProfileShadowing, doctor, formatReport } from './index.js'
+import { checkManifestBom, checkProfileShadowing, doctor, formatReport } from './index.js'
 
 const { values, positionals } = parseArgs({
   options: {
@@ -28,7 +28,7 @@ Options:
   --full        also pack, install into a temp dsh profile, and verify config
   --json        output machine-readable JSON
   --timeout N   command timeout in ms (default 120000)
-  --profile P   check a dsh profile for host-shadowing @deepseek-ai copies
+  --profile P   check a dsh profile (host-shadowing @deepseek-ai copies + manifest BOM)
   --env         run environment diagnostics (node/pnpm/dsh PATH, web port)
   --port N      web port to probe with --env (default 3080)
   preflight P   run the full pre-publish pipeline on plugin directory P (build + pack + fresh-profile install)
@@ -50,14 +50,29 @@ if (values.env) {
 }
 
 if (values.profile !== undefined && values.profile !== '') {
-  const check = checkProfileShadowing(values.profile)
-  const report = { ok: check.status !== 'FAIL', checks: [check] }
-  if (values.json) {
-    console.log(JSON.stringify(report, null, 2))
-  } else {
-    console.log(formatReport(report))
+  const checks = [checkProfileShadowing(values.profile), checkManifestBom(values.profile)]
+  const status = checks.some((c) => c.status === 'FAIL') ? 2 : checks.some((c) => c.status === 'WARN') ? 1 : 0
+  const envelope = {
+    schema: 'dsh-doctor/v1',
+    generatedAt: new Date().toISOString(),
+    profile: values.profile,
+    exitCode: status,
+    summary: {
+      pass: checks.filter((c) => c.status === 'PASS').length,
+      warn: checks.filter((c) => c.status === 'WARN').length,
+      fail: checks.filter((c) => c.status === 'FAIL').length,
+    },
+    // Legacy compatibility fields.
+    ok: status !== 2,
+    checks: checks.map((c) => ({ ...c, status: c.status.toLowerCase() })),
   }
-  process.exit(report.ok ? 0 : 1)
+  const display = { ok: status !== 2, checks }
+  if (values.json) {
+    console.log(JSON.stringify(envelope, null, 2))
+  } else {
+    console.log(formatReport(display))
+  }
+  process.exit(status)
 }
 
 if (positionals[0] === 'preflight') {
