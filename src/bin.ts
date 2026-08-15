@@ -11,6 +11,7 @@ const { values, positionals } = parseArgs({
     json: { type: 'boolean', default: false },
     timeout: { type: 'string', default: '120000' },
     profile: { type: 'string', default: '' },
+    port: { type: 'string', default: '3080' },
     env: { type: 'boolean', default: false },
     help: { type: 'boolean', default: false },
   },
@@ -29,13 +30,15 @@ Options:
   --timeout N   command timeout in ms (default 120000)
   --profile P   check a dsh profile for host-shadowing @deepseek-ai copies
   --env         run environment diagnostics (node/pnpm/dsh PATH, web port)
+  --port N      web port to probe with --env (default 3080)
   --help        show this help
 `)
   process.exit(0)
 }
 
 if (values.env) {
-  const checks = await checkEnvironment(3080, Number(values.timeout ?? 120000))
+  const port = Number(values.port ?? 3080)
+  const checks = await checkEnvironment(Number.isInteger(port) && port > 0 ? port : 3080, Number(values.timeout ?? 120000))
   const report = { ok: checks.every((check) => check.status !== 'FAIL'), checks }
   if (values.json) {
     console.log(JSON.stringify(report, null, 2))
