@@ -31,5 +31,9 @@ jobs:
           node lib/bin.js --help >/dev/null
           node lib/bin.js tests/fixtures/good-plugin | grep -q '\[PASS\] manifest'
           node lib/bin.js tests/fixtures/good-plugin | grep -q '\[PASS\] patch'
+      - name: Profile shadow tripwire smoke
+        run: |
+          node lib/bin.js --profile tests/fixtures/good-plugin | grep -q '\[PASS\] profile-shadow'
+          node lib/bin.js --profile tests/fixtures/good-plugin --json | grep -q '"ok": true'
       - name: Full doctor self-check (pack → fresh DSH_HOME profile → dsh plugin add → dump-config)
         run: node lib/bin.js --full .
