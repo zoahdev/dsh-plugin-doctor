@@ -9,7 +9,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
@@ -96,6 +96,85 @@ export function checkManifestBom(profileDir: string): CheckResult {
     }
   }
   return { name: 'manifest-bom', status: 'PASS', detail: 'profile manifest has no UTF-8 BOM' }
+}
+
+const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx'])
+
+const PRE_EXECUTE_RE = /\bpre[_-]?execute\b/i
+
+/** Heuristic: host-level side-effect APIs that must not run before approval. */
+const SIDE_EFFECT_RE = [
+  /node:child_process|child_process/,
+  /\b(spawn|execFile|fork|exec)\s*\(/,
+  /node:fs|\b(writeFile|writeFileSync|appendFile|createWriteStream|unlinkSync|rmSync|renameSync)\s*\(/,
+  /\b(fetch|http\.request|https\.request|net\.connect|createConnection)\s*\(/,
+]
+
+function collectSourceFiles(dir: string, out: string[] = [], depth = 0): string[] {
+  if (depth > 6) return out
+  let entries: string[] = []
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return out
+  }
+  for (const entry of entries) {
+    if (entry === 'node_modules' || entry === '.git' || entry === '.DS_Store') continue
+    const full = path.join(dir, entry)
+    try {
+      const stat = statSync(full)
+      if (stat.isDirectory()) collectSourceFiles(full, out, depth + 1)
+      else if (SOURCE_EXTENSIONS.has(path.extname(entry))) out.push(full)
+    } catch { /* unreadable */ }
+  }
+  return out
+}
+
+/**
+ * Heuristic lint for the #1863 class: a `pre-execute` listener that performs
+ * host-level side effects before returning `ask` defeats approval (approval
+ * is consent UX, not a sandbox). Flags side-effect APIs in files that
+ * reference pre-execute. This is a review aid, not a security sandbox.
+ */
+export function checkPreExecuteSideEffects(dir: string): CheckResult {
+  const root = path.resolve(dir)
+  const files = collectSourceFiles(root)
+  const hits: string[] = []
+  let preExecuteFiles = 0
+  for (const file of files) {
+    let text: string
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    if (!PRE_EXECUTE_RE.test(text)) continue
+    preExecuteFiles += 1
+    const relative = path.relative(root, file)
+    for (const pattern of SIDE_EFFECT_RE) {
+      const match = pattern.exec(text)
+      if (match !== null) {
+        hits.push(`${relative} (${match[0].slice(0, 40)})`)
+        break
+      }
+    }
+  }
+  if (preExecuteFiles === 0) {
+    return { name: 'pre-execute-side-effects', status: 'PASS', detail: 'no pre-execute listener found' }
+  }
+  if (hits.length > 0) {
+    return {
+      name: 'pre-execute-side-effects',
+      status: 'FAIL',
+      detail: `pre-execute listeners may run side effects before approval (#1863): ${hits.join('; ')}. `
+        + 'Move side effects into execute() after approval; approval is consent UX, not a sandbox. Heuristic, not a security audit.',
+    }
+  }
+  return {
+    name: 'pre-execute-side-effects',
+    status: 'PASS',
+    detail: `pre-execute listeners present (${preExecuteFiles} file(s)); no obvious side-effect APIs detected in the same files (heuristic)`,
+  }
 }
 
 export interface ManifestView {
@@ -239,6 +318,9 @@ export async function doctor(dir: string, options: DoctorOptions = {}): Promise<
     status: filesOk ? 'PASS' : 'WARN',
     detail: filesOk ? `ships: ${manifest.files?.join(', ')}` : 'no files allowlist in package.json',
   })
+
+  // 4.5 pre-execute side-effect lint (#1863)
+  checks.push(checkPreExecuteSideEffects(root))
 
   // 5. build (optional)
   if (options.build === true) {
