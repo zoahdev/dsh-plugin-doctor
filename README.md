@@ -35,6 +35,7 @@ npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile-level host-shadowing tripwire
 npx dsh-plugin-doctor --env                            # environment diagnostics (node/pnpm/dsh PATH, port 3080)
+npx dsh-plugin-doctor --env --port 8090                # probe a custom web port instead
 npx dsh-plugin-doctor --help
 ```
 
@@ -51,7 +52,7 @@ Install the plugin into a DeepSeek Harness profile:
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # from npm
 # or from a local build:
-dsh plugin --profile web add ./dsh-plugin-doctor-1.3.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.4.0.tgz
 ```
 
 Then ask the agent inside DSH:
@@ -139,6 +140,7 @@ npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile 级宿主遮蔽 tripwire
 npx dsh-plugin-doctor --env                            # 环境诊断（node/pnpm/dsh PATH、3080 端口）
+npx dsh-plugin-doctor --env --port 8090                # 探测自定义端口
 npx dsh-plugin-doctor --help
 ```
 
@@ -155,7 +157,7 @@ node lib/bin.js --full ./my-plugin
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # 从 npm 安装
 # 或本地构建产物：
-dsh plugin --profile web add ./dsh-plugin-doctor-1.3.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.4.0.tgz
 ```
 
 然后在 DSH 里直接对 agent 说：
