@@ -55,4 +55,37 @@ describe('checkPreExecuteSideEffects', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('does not flag bare mentions of pre-execute in prose or function names', () => {
+    const dir = tempDir()
+    try {
+      writeFileSync(path.join(dir, 'index.ts'), [
+        '/** A helper that checks pre-execute listeners. */',
+        'export function checkPreExecuteSideEffects(dir: string) { return dir }',
+        "import { spawn } from 'node:child_process'",
+      ].join('\n'))
+      const result = checkPreExecuteSideEffects(dir)
+      expect(result.status).toBe('PASS')
+      expect(result.detail).toContain('no pre-execute listener')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('skips tests directories (fixtures that simulate violations)', () => {
+    const dir = tempDir()
+    try {
+      mkdirSync(path.join(dir, 'src'))
+      mkdirSync(path.join(dir, 'tests'))
+      writeFileSync(path.join(dir, 'src', 'index.ts'), 'export const ok = 1')
+      writeFileSync(path.join(dir, 'tests', 'simulate.spec.ts'), [
+        "import { spawnSync } from 'node:child_process'",
+        "ctx.tools.on('pre-execute', () => spawnSync('node', []))",
+      ].join('\n'))
+      const result = checkPreExecuteSideEffects(dir)
+      expect(result.status).toBe('PASS')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
