@@ -211,6 +211,59 @@ export function checkEntryPoints(profileDir: string): CheckResult {
   }
 }
 
+/**
+ * Pruned-runtime-tree tripwire for the #2081 class. `healProfilesModuleFallback`
+ * re-links the shared runtime tree (typically `$DSH_HOME/profiles/node_modules`)
+ * to the deployment anchor on every launch. A bare `npm install` in that
+ * package.json-less tree makes npm prune every existing package, after which
+ * `dsh web` fails with `ERR_MODULE_NOT_FOUND` and does not self-heal.
+ * @param profileDir - absolute path of the dsh profile to inspect.
+ */
+export function checkProfileDeps(profileDir: string): CheckResult {
+  const candidates = [path.join(profileDir, 'node_modules'), path.resolve(profileDir, '..', 'node_modules')]
+  const found = candidates.find(dir => existsSync(path.join(dir, '@deepseek-ai')))
+  if (found !== undefined) {
+    let count = 0
+    try { count = readdirSync(path.join(found, '@deepseek-ai')).length } catch { /* unreadable */ }
+    return { name: 'profile-deps', status: 'PASS', detail: `runtime @deepseek-ai scope present at ${found} (${count} entries)` }
+  }
+  if (existsSync(path.join(profileDir, 'package.json'))) {
+    return {
+      name: 'profile-deps',
+      status: 'FAIL',
+      detail: 'profile manifest exists but no runtime @deepseek-ai scope was found (profile or shared node_modules). '
+        + 'A bare npm/pnpm install inside a profile dir prunes the shared runtime tree (discussion #2081); recover from the deployment anchor.',
+    }
+  }
+  return { name: 'profile-deps', status: 'PASS', detail: 'no profile manifest; runtime tree not yet materialized' }
+}
+
+/**
+ * Native-module presence tripwire for the npm 11 `allow-scripts=false` class
+ * (#2081). koffi/node-pty rely on postinstall builds; when npm skips those
+ * scripts the packages are installed but unusable. Reports a WARN (not FAIL)
+ * because a minimal profile may legitimately not carry these modules.
+ * @param profileDir - absolute path of the dsh profile to inspect.
+ */
+export function checkNativeModules(profileDir: string): CheckResult {
+  const candidates = [path.join(profileDir, 'node_modules'), path.resolve(profileDir, '..', 'node_modules')]
+  const present: string[] = []
+  const missing: string[] = []
+  for (const pkg of ['koffi', 'node-pty']) {
+    if (candidates.some(dir => existsSync(path.join(dir, pkg)))) present.push(pkg)
+    else missing.push(pkg)
+  }
+  if (missing.length === 0) {
+    return { name: 'native-modules', status: 'PASS', detail: `native modules present: ${present.join(', ')}` }
+  }
+  return {
+    name: 'native-modules',
+    status: 'WARN',
+    detail: `native modules possibly missing from the runtime tree: ${missing.join(', ')}. `
+      + 'npm 11 defaults allow-scripts=false, so native builds can be skipped (discussion #2081); reinstall with --allow-scripts=... if the native build is missing.',
+  }
+}
+
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx'])
 
 // Only real listener registrations count: an on() call with a quoted
