@@ -2,7 +2,14 @@
 
 import { parseArgs } from 'node:util'
 import { checkEnvironment, formatEnvReport } from './env.js'
-import { checkLargeFiles, checkManifestBom, checkProfileShadowing, doctor, formatReport } from './index.js'
+import {
+  checkEntryPoints,
+  checkLargeFiles,
+  checkManifestBom,
+  checkProfileShadowing,
+  doctor,
+  formatReport,
+} from './index.js'
 
 const { values, positionals } = parseArgs({
   options: {
@@ -51,7 +58,12 @@ if (values.env) {
 }
 
 if (values.profile !== undefined && values.profile !== '') {
-  const checks = [checkProfileShadowing(values.profile), checkManifestBom(values.profile), checkLargeFiles(values.profile)]
+  const checks = [
+    checkProfileShadowing(values.profile),
+    checkManifestBom(values.profile),
+    checkLargeFiles(values.profile),
+    checkEntryPoints(values.profile),
+  ]
   const status = checks.some((c) => c.status === 'FAIL') ? 2 : checks.some((c) => c.status === 'WARN') ? 1 : 0
   const envelope = {
     schema: 'dsh-doctor/v1',
