@@ -32,6 +32,7 @@ Options:
   --env         run environment diagnostics (node/pnpm/dsh PATH, web port)
   --port N      web port to probe with --env (default 3080)
   preflight P   run the full pre-publish pipeline on plugin directory P (build + pack + fresh-profile install)
+  check P       alias of preflight — matches the proposed 'dsh plugin check' surface (RFC #1846)
   --help        show this help
 `)
   process.exit(0)
@@ -75,7 +76,7 @@ if (values.profile !== undefined && values.profile !== '') {
   process.exit(status)
 }
 
-if (positionals[0] === 'preflight') {
+if (positionals[0] === 'preflight' || positionals[0] === 'check') {
   // `preflight` = the full pre-publish pipeline (build + pack + fresh-profile
   // install + composed-config verification). Named to match the activation
   // preflight proposal in discussion #1774.
