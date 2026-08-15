@@ -26,6 +26,7 @@ It works in two ways:
 | `profile-shadow` | a dsh profile has no real-directory `@deepseek-ai/*` copy shadowing the host instance (discussion #1697) | `--profile <dir>` |
 | `manifest-bom` | a dsh profile's `package.json` has no UTF-8 BOM (crashes `dsh web` at boot, discussion #1842) | `--profile <dir>` |
 | `large-files` | no profile file exceeds 100 MB (session logs can hit the ~512 MB stringify cap, discussion #1859) | `--profile <dir>` |
+| `entry-points` | every installed plugin's `main`/`exports` target exists (source-copy installs without a build crash `dsh web` at boot, discussion #1965) | `--profile <dir>` |
 | `pre-execute-side-effects` | pre-execute listeners do not run host-level side effects before approval (heuristic lint, discussion #1863) | default pipeline |
 | `shell-launcher` | child_process usage does not invoke explorer/start/open/powershell/cmd surfaces that can bypass approval/workspace limits (heuristic, discussions #1923/#1863) | default pipeline |
 | `node` / `pnpm` / `dsh-path` / `port-3080` / `win-bash` | environment diagnostics: toolchain on PATH, Web UI port free, and Windows bash resolvable for the minimal preset (discussion #1856) | `--env` |
@@ -138,6 +139,7 @@ MIT © 2026 zoahdev
 | `build` | `pnpm run build` 成功 | `--build` |
 | `pack`+`install`+`config` | `pnpm pack`，装进全新 `DSH_HOME` profile，并在 `--dump-config` 里确认插件 id | `--full` |
 | `profile-shadow` | dsh profile 顶层没有真实目录形式的 `@deepseek-ai/*` 副本遮蔽宿主实例（讨论 #1697） | `--profile <dir>` |
+| entry-points | 已安装插件的 main/exports 指向的文件存在（未构建的源码拷贝会导致 dsh web 启动崩溃，讨论 #1965） | --profile <dir> |
 | `node` / `pnpm` / `dsh-path` / `port-3080` / `win-bash` | 环境诊断：工具链在 PATH 上、Web UI 端口空闲、Windows bash 可解析（minimal 预设，讨论 #1856） | `--env` |
 
 退出码：全部通过为 `0`，否则为 `1`。`--json` 输出机器可读报告，方便接入 CI。
