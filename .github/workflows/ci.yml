@@ -44,3 +44,5 @@ jobs:
         run: node lib/bin.js --full .
       - name: Preflight alias smoke
         run: node lib/bin.js preflight . | grep -q 'ALL CHECKS PASSED'
+      - name: Real-registry agent-visibility check
+        run: node scripts/visibility-check.mjs
