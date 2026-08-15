@@ -32,6 +32,7 @@ Exit code is `0` when nothing failed, `1` otherwise. `--json` prints a machine-r
 npx dsh-plugin-doctor .                 # quick checks on the current directory
 npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
+npx dsh-plugin-doctor preflight ./my-plugin       # alias: build + full pipeline (discussion #1774)
 npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile-level host-shadowing tripwire
 npx dsh-plugin-doctor --env                            # environment diagnostics (node/pnpm/dsh PATH, port 3080)
@@ -52,7 +53,7 @@ Install the plugin into a DeepSeek Harness profile:
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # from npm
 # or from a local build:
-dsh plugin --profile web add ./dsh-plugin-doctor-1.4.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.5.0.tgz
 ```
 
 Then ask the agent inside DSH:
@@ -137,6 +138,7 @@ MIT © 2026 zoahdev
 npx dsh-plugin-doctor .                 # 对当前目录做快速检查
 npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
+npx dsh-plugin-doctor preflight ./my-plugin       # 别名：build + 全链路（讨论 #1774）
 npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile 级宿主遮蔽 tripwire
 npx dsh-plugin-doctor --env                            # 环境诊断（node/pnpm/dsh PATH、3080 端口）
@@ -157,7 +159,7 @@ node lib/bin.js --full ./my-plugin
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # 从 npm 安装
 # 或本地构建产物：
-dsh plugin --profile web add ./dsh-plugin-doctor-1.4.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.5.0.tgz
 ```
 
 然后在 DSH 里直接对 agent 说：
