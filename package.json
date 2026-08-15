@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-doctor",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Health checks for DeepSeek Harness: plugin manifest/patch/entry/build/pack/install verification, model-callable plugin_check, profile host-shadowing + manifest-BOM detection, and environment diagnostics (node/pnpm/dsh PATH, web port).",
   "type": "module",
   "main": "lib/index.js",
