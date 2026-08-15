@@ -1,0 +1,22 @@
+# dsh-plugin-doctor
+
+> Health checks for DeepSeek Harness: plugin manifest/patch/entry/build/pack/install verification, a model-callable `plugin_check` tool, profile host-shadowing detection, and environment diagnostics. Implements the `dsh plugin check` idea from RFC #1629 and the `dsh doctor` idea from discussion #1719.
+
+## Key facts
+
+- Modes: CLI (`node lib/bin.js` / `dsh-plugin-doctor`) and plugin shell (`dsh plugin add`, agent calls `plugin_check`)
+- Flags: `--build`, `--full`, `--json`, `--profile <dir>` (host-shadow tripwire), `--env` (node/pnpm/dsh PATH, port 3080)
+- Checks: manifest, patch, entry, files, build, pack+install+config, profile-shadow, env
+- Verification: 12 unit tests; packaged plugin-shell smoke; doctor self-check; CI green
+
+## Key files
+
+- src/index.ts — core checks + checkProfileShadowing
+- src/env.ts — environment diagnostics
+- src/plugin.ts — plugin shell with `plugin_check` tool
+- src/bin.ts — CLI entry
+
+## Community
+
+- Showcase: https://github.com/deepseek-ai/deepseek-harness/discussions/1693
+- #1697 duplicate-instance root cause + fix: https://github.com/deepseek-ai/deepseek-harness/discussions/1697
