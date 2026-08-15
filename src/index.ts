@@ -9,7 +9,7 @@
  */
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
@@ -34,6 +34,43 @@ export interface DoctorOptions {
   dshCommand?: string[]
   /** Timeout for external commands in milliseconds. */
   timeoutMs?: number
+}
+
+/**
+ * Check a dsh profile for a real-directory copy of `@deepseek-ai/*` shadowing
+ * the host instance. With `nodeLinker: hoisted`, a profile-installed plugin's
+ * transitive `@deepseek-ai/dsh-tools` can be hoisted to the profile's top-level
+ * node_modules; Node then resolves the shadowed copy for bare specifiers and
+ * every tool call can crash with `Cannot read properties of undefined
+ * (reading 'prepare')` (deepseek-harness discussion #1697).
+ * @param profileDir - absolute path of the dsh profile to inspect.
+ */
+export function checkProfileShadowing(profileDir: string): CheckResult {
+  const scope = path.join(profileDir, 'node_modules', '@deepseek-ai')
+  if (!existsSync(scope)) {
+    return { name: 'profile-shadow', status: 'PASS', detail: `no @deepseek-ai scope at ${scope}` }
+  }
+  const shadowed: string[] = []
+  for (const entry of readdirSync(scope)) {
+    const full = path.join(scope, entry)
+    try {
+      const stat = lstatSync(full)
+      // pnpm normally links the host copy via symlink/junction; a REAL
+      // directory is a hoisted duplicate that shadows the host.
+      if (stat.isDirectory() && !stat.isSymbolicLink()) shadowed.push(entry)
+    } catch {
+      // Broken links are not shadow copies; ignore.
+    }
+  }
+  if (shadowed.length === 0) {
+    return { name: 'profile-shadow', status: 'PASS', detail: `no real-directory @deepseek-ai/* copy at ${scope}` }
+  }
+  return {
+    name: 'profile-shadow',
+    status: 'FAIL',
+    detail: `profile-top-level @deepseek-ai/* real-directory copy(ies) shadow the host: ${shadowed.join(', ')}. `
+      + 'This can break every tool call (discussion #1697). Reinstall the profile so the host copy is resolved first.',
+  }
 }
 
 export interface ManifestView {
