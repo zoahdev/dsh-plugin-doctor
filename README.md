@@ -100,6 +100,7 @@ This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-pl
 ### Related community tools
 
 - [moonquake2004/dsh-doctor](https://github.com/moonquake2004/dsh-doctor) — offline profile/session/env diagnostics with 19 checks mapped to community failure reports. Complementary: dsh-plugin-doctor covers the pre-publish plugin path, dsh-doctor covers the offline profile/session path. Its P5 check and our `profile-shadow` check flag the same host-shadowing precondition from two sides.
+- [iiwish/dsh-testkit](https://github.com/iiwish/dsh-testkit) — real-host plugin lifecycle testing (pack → install → boot → register → deterministic exercise → uninstall → reboot → residue) in a disposable Docker environment. Complementary: dsh-plugin-doctor is the fast local preflight, dsh-testkit is the full release-branch lifecycle gate.
 
 ### CI
 
@@ -217,6 +218,7 @@ agent 会调用 `plugin_check` 工具（参数 `dir`，可选 `build`/`full`）�
 ### 相关社区工具
 
 - [moonquake2004/dsh-doctor](https://github.com/moonquake2004/dsh-doctor) —— 离线 profile/session/env 诊断（19 项检查，映射到社区故障报告）。与 dsh-plugin-doctor 互补：我们管发布前插件路径，它管离线 profile/session 路径；它的 P5 检查与我们的 `profile-shadow` 检查从两个方向标记同一个宿主遮蔽前置条件。
+- [iiwish/dsh-testkit](https://github.com/iiwish/dsh-testkit) —— 真实宿主插件生命周期测试（pack → install → boot → register → 确定性调用 → uninstall → reboot → 残留检查），在一次性 Docker 环境运行。互补：dsh-plugin-doctor 是快速的本地 preflight，dsh-testkit 是发布分支的完整生命周期门禁。
 
 ### CI
 
