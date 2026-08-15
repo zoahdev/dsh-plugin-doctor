@@ -139,6 +139,78 @@ export function checkLargeFiles(profileDir: string, thresholdBytes = 100 * 1024 
   }
 }
 
+/**
+ * Installed-plugin entry-point check for the #1965 class: a marketplace
+ * install that copies a source checkout without building leaves
+ * `package.json` `main`/`exports` pointing at missing files, and `dsh web`
+ * dies at boot with `Cannot find package ... index.js`.
+ * @param profileDir - absolute path of the dsh profile to inspect.
+ */
+export function checkEntryPoints(profileDir: string): CheckResult {
+  const modulesDir = path.join(profileDir, 'node_modules')
+  if (!existsSync(modulesDir)) {
+    return { name: 'entry-points', status: 'PASS', detail: `no node_modules at ${modulesDir}` }
+  }
+  const broken: string[] = []
+  const checkPackage = (pkgDir: string): void => {
+    const manifestPath = path.join(pkgDir, 'package.json')
+    if (!existsSync(manifestPath)) return
+    let manifest: { main?: unknown; exports?: unknown }
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { main?: unknown; exports?: unknown }
+    } catch {
+      return
+    }
+    const candidates: string[] = []
+    if (typeof manifest.main === 'string') candidates.push(manifest.main)
+    if (typeof manifest.exports === 'string') {
+      candidates.push(manifest.exports)
+    } else if (manifest.exports !== null && typeof manifest.exports === 'object') {
+      const dot = (manifest.exports as Record<string, unknown>)['.']
+      if (typeof dot === 'string') candidates.push(dot)
+      else if (dot !== null && typeof dot === 'object') {
+        for (const key of ['default', 'import', 'require', 'types'] as const) {
+          const value = (dot as Record<string, unknown>)[key]
+          if (typeof value === 'string') {
+            candidates.push(value)
+            break
+          }
+        }
+      }
+    }
+    if (candidates.length === 0) return
+    const missing = candidates.filter(candidate => !existsSync(path.join(pkgDir, candidate)))
+    if (missing.length > 0) {
+      broken.push(`${path.basename(pkgDir)}: ${missing.join(', ')}`)
+    }
+  }
+  for (const entry of readdirSync(modulesDir)) {
+    if (entry.startsWith('.')) continue
+    const full = path.join(modulesDir, entry)
+    try {
+      if (!statSync(full).isDirectory()) continue
+      if (entry.startsWith('@')) {
+        for (const scoped of readdirSync(full)) {
+          checkPackage(path.join(full, scoped))
+        }
+      } else {
+        checkPackage(full)
+      }
+    } catch {
+      // Unreadable or broken-link entries are not entry-point failures.
+    }
+  }
+  if (broken.length === 0) {
+    return { name: 'entry-points', status: 'PASS', detail: 'every installed plugin manifest entry point resolves' }
+  }
+  return {
+    name: 'entry-points',
+    status: 'FAIL',
+    detail: 'installed plugin entry points point at missing files (source-copy install without build, discussion #1965): '
+      + `${broken.join('; ')}. Reinstall from npm or run the plugin's build before adding it to the profile.`,
+  }
+}
+
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx'])
 
 // Only real listener registrations count: an on() call with a quoted
