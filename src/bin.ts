@@ -31,6 +31,7 @@ Options:
   --profile P   check a dsh profile for host-shadowing @deepseek-ai copies
   --env         run environment diagnostics (node/pnpm/dsh PATH, web port)
   --port N      web port to probe with --env (default 3080)
+  preflight P   run the full pre-publish pipeline on plugin directory P (build + pack + fresh-profile install)
   --help        show this help
 `)
   process.exit(0)
@@ -51,6 +52,24 @@ if (values.env) {
 if (values.profile !== undefined && values.profile !== '') {
   const check = checkProfileShadowing(values.profile)
   const report = { ok: check.status !== 'FAIL', checks: [check] }
+  if (values.json) {
+    console.log(JSON.stringify(report, null, 2))
+  } else {
+    console.log(formatReport(report))
+  }
+  process.exit(report.ok ? 0 : 1)
+}
+
+if (positionals[0] === 'preflight') {
+  // `preflight` = the full pre-publish pipeline (build + pack + fresh-profile
+  // install + composed-config verification). Named to match the activation
+  // preflight proposal in discussion #1774.
+  const dir = positionals[1] ?? '.'
+  const report = await doctor(dir, {
+    build: true,
+    full: true,
+    timeoutMs: Number(values.timeout ?? 120000),
+  })
   if (values.json) {
     console.log(JSON.stringify(report, null, 2))
   } else {
