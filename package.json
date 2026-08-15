@@ -1,0 +1,40 @@
+{
+  "name": "dsh-plugin-doctor",
+  "version": "1.0.0",
+  "description": "Health checks for DeepSeek Harness plugins: manifest structure, patch validity, entry points, build, pack, and a real dsh install/boot smoke test.",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "bin": {
+    "dsh-plugin-doctor": "lib/bin.js"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepare": "pnpm run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "plugin",
+    "doctor",
+    "health-check",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "js-yaml": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.20.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

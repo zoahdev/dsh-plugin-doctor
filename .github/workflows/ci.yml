@@ -1,0 +1,31 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Build
+        run: pnpm run build
+      - name: Unit tests
+        run: pnpm test
+      - name: CLI smoke (help + manifest check against a real plugin)
+        run: |
+          node lib/bin.js --help >/dev/null
+          node lib/bin.js tests/fixtures/good-plugin | grep -q '\[PASS\] manifest'
+          node lib/bin.js tests/fixtures/good-plugin | grep -q '\[PASS\] patch'

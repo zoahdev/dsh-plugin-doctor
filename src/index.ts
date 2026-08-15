@@ -1,0 +1,232 @@
+/**
+ * dsh-plugin-doctor — health checks for DeepSeek Harness plugins.
+ *
+ * Mirrors the `dsh plugin check` proposal from
+ * https://github.com/deepseek-ai/deepseek-harness/discussions/1629:
+ * manifest structure, patch validity, entry points, build, pack, and a real
+ * dsh install/boot smoke test.
+ * @module dsh-plugin-doctor
+ */
+
+import { spawn } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { load as parseYaml } from 'js-yaml'
+
+export interface CheckResult {
+  name: string
+  status: 'PASS' | 'WARN' | 'FAIL'
+  detail: string
+}
+
+export interface DoctorReport {
+  ok: boolean
+  checks: CheckResult[]
+}
+
+export interface DoctorOptions {
+  /** Run build (pnpm run build) when a build script exists. */
+  build?: boolean
+  /** Full mode: pack, install into a temp dsh profile, and boot web. */
+  full?: boolean
+  /** Command used to launch dsh (default: pnpm dlx @deepseek-ai/dsh). */
+  dshCommand?: string[]
+  /** Timeout for external commands in milliseconds. */
+  timeoutMs?: number
+}
+
+export interface ManifestView {
+  name?: string
+  version?: string
+  main?: string
+  files?: string[]
+  prepare?: string
+  patch?: string
+  dshBundle?: boolean
+}
+
+/** Read and summarize the plugin manifest, or return null when missing. */
+export function readManifest(dir: string): ManifestView | null {
+  const file = path.join(dir, 'package.json')
+  if (!existsSync(file)) return null
+  try {
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>
+    const dsh = raw.dsh as Record<string, unknown> | null
+    const bundle = dsh !== null && typeof dsh === 'object' ? dsh.bundle as Record<string, unknown> | null : null
+    return {
+      name: typeof raw.name === 'string' ? raw.name : undefined,
+      version: typeof raw.version === 'string' ? raw.version : undefined,
+      main: typeof raw.main === 'string' ? raw.main : undefined,
+      files: Array.isArray(raw.files) ? raw.files.filter((x): x is string => typeof x === 'string') : [],
+      prepare: typeof raw.scripts === 'object' && raw.scripts !== null
+        ? (raw.scripts as Record<string, unknown>).prepare as string | undefined
+        : undefined,
+      patch: bundle !== null && typeof bundle === 'object' ? bundle.patch as string | undefined : undefined,
+      dshBundle: bundle !== null && typeof bundle === 'object',
+    }
+  } catch {
+    return null
+  }
+}
+
+export interface PatchEntry {
+  id: string
+  name: string
+}
+
+/** Parse cordis.patch.yml and extract plugin ids, or throw a descriptive error. */
+export function parsePatch(content: string): PatchEntry[] {
+  const parsed = parseYaml(content) as unknown
+  if (!Array.isArray(parsed)) throw new Error('patch file must be a YAML list of operations')
+  const ids: PatchEntry[] = []
+  for (const op of parsed) {
+    if (op === null || typeof op !== 'object') continue
+    const insert = (op as Record<string, unknown>).insert
+    if (!Array.isArray(insert)) continue
+    for (const row of insert) {
+      if (row === null || typeof row !== 'object') continue
+      const r = row as Record<string, unknown>
+      if (typeof r.id === 'string') {
+        ids.push({ id: r.id, name: typeof r.name === 'string' ? r.name : '' })
+      }
+    }
+  }
+  return ids
+}
+
+function run(command: string[], cwd: string, timeoutMs: number, env?: Record<string, string>): Promise<{ code: number; output: string }> {
+  return new Promise((resolve) => {
+    const childEnv = env !== undefined ? { ...process.env, ...env } : process.env
+    const child = process.platform === 'win32'
+      ? spawn(command.join(' '), { cwd, shell: true, windowsHide: true, env: childEnv })
+      : spawn(command[0] ?? '', command.slice(1), { cwd, env: childEnv })
+    let output = ''
+    child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString() })
+    child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString() })
+    const timer = setTimeout(() => {
+      child.kill()
+      resolve({ code: -1, output: `${output}\n[timed out after ${timeoutMs}ms]` })
+    }, timeoutMs)
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      resolve({ code: code ?? -1, output })
+    })
+  })
+}
+
+/**
+ * Run the full doctor check on a plugin directory.
+ * @param dir - plugin bundle directory.
+ * @param options - check options.
+ */
+export async function doctor(dir: string, options: DoctorOptions = {}): Promise<DoctorReport> {
+  const timeout = options.timeoutMs ?? 120_000
+  const checks: CheckResult[] = []
+  const root = path.resolve(dir)
+
+  // 1. manifest
+  const manifest = readManifest(root)
+  if (manifest === null) {
+    checks.push({ name: 'manifest', status: 'FAIL', detail: 'package.json missing or invalid' })
+    return { ok: false, checks }
+  }
+  const manifestProblems: string[] = []
+  if (!manifest.dshBundle) manifestProblems.push('missing dsh.bundle manifest')
+  if (manifest.patch === undefined) manifestProblems.push('missing dsh.bundle.patch')
+  if (manifest.prepare === undefined) manifestProblems.push('missing prepare script (required for git installs)')
+  if (manifest.main === undefined) manifestProblems.push('missing main entry')
+  checks.push({
+    name: 'manifest',
+    status: manifestProblems.length === 0 ? 'PASS' : 'FAIL',
+    detail: manifestProblems.length === 0
+      ? `${manifest.name ?? 'unnamed'}@${manifest.version ?? '?'} bundle manifest ok`
+      : manifestProblems.join('; '),
+  })
+
+  // 2. patch file + yaml + ids
+  const patchPath = manifest.patch !== undefined ? path.join(root, manifest.patch) : null
+  let patchIds: PatchEntry[] = []
+  if (patchPath === null || !existsSync(patchPath)) {
+    checks.push({ name: 'patch', status: 'FAIL', detail: `patch file not found: ${manifest.patch ?? '(none)'}` })
+  } else {
+    try {
+      patchIds = parsePatch(readFileSync(patchPath, 'utf8'))
+      if (patchIds.length === 0) {
+        checks.push({ name: 'patch', status: 'FAIL', detail: 'no insert rows with an id found in the patch' })
+      } else {
+        checks.push({ name: 'patch', status: 'PASS', detail: `${patchIds.length} plugin row(s): ${patchIds.map((p) => p.id).join(', ')}` })
+      }
+    } catch (error) {
+      checks.push({ name: 'patch', status: 'FAIL', detail: `invalid YAML: ${error instanceof Error ? error.message : String(error)}` })
+    }
+  }
+
+  // 3. entry file
+  const entry = manifest.main !== undefined ? path.join(root, manifest.main) : null
+  checks.push({
+    name: 'entry',
+    status: entry !== null && existsSync(entry) ? 'PASS' : 'WARN',
+    detail: entry !== null && existsSync(entry) ? `entry ${manifest.main} exists` : `entry ${manifest.main ?? '(none)'} not built yet (run pnpm install && pnpm run build)`,
+  })
+
+  // 4. files allowlist
+  const filesOk = manifest.files !== undefined && manifest.files.length > 0
+  checks.push({
+    name: 'files',
+    status: filesOk ? 'PASS' : 'WARN',
+    detail: filesOk ? `ships: ${manifest.files?.join(', ')}` : 'no files allowlist in package.json',
+  })
+
+  // 5. build (optional)
+  if (options.build === true) {
+    const build = await run(['pnpm', 'run', 'build'], root, timeout)
+    checks.push({
+      name: 'build',
+      status: build.code === 0 ? 'PASS' : 'FAIL',
+      detail: build.code === 0 ? 'pnpm run build succeeded' : `pnpm run build failed (exit ${build.code}):\n${build.output.slice(-800)}`,
+    })
+  }
+
+  // 6. full smoke: pack + dsh install + boot
+  if (options.full === true) {
+    const dsh = options.dshCommand ?? ['pnpm', 'dlx', '@deepseek-ai/dsh']
+    const pack = await run(['pnpm', 'pack'], root, timeout)
+    if (pack.code !== 0) {
+      checks.push({ name: 'pack', status: 'FAIL', detail: `pnpm pack failed:\n${pack.output.slice(-800)}` })
+    } else {
+      const tgz = pack.output.trim().split(/\r?\n/).pop() ?? ''
+      checks.push({ name: 'pack', status: 'PASS', detail: `packed ${tgz}` })
+      const home = mkdtempSync(path.join(tmpdir(), 'dsh-doctor-'))
+      const profile = 'doctor'
+      try {
+        const tarball = path.resolve(root, tgz.trim())
+        const env = { DSH_HOME: home }
+        const add = await run([...dsh, 'plugin', '--profile', profile, 'add', tarball], root, timeout, env)
+        if (add.code !== 0) {
+          checks.push({ name: 'install', status: 'FAIL', detail: `dsh plugin add failed:\n${add.output.slice(-800)}` })
+        } else {
+          const dump = await run([...dsh, '--profile', profile, '--dump-config'], root, timeout, env)
+          const found = patchIds.some((p) => dump.output.includes(p.id))
+          checks.push({
+            name: 'install',
+            status: found ? 'PASS' : 'FAIL',
+            detail: found ? `plugin id(s) present in composed config: ${patchIds.map((p) => p.id).join(', ')}` : 'plugin id not found in composed config',
+          })
+        }
+      } finally {
+        rmSync(home, { recursive: true, force: true })
+      }
+    }
+  }
+
+  const failed = checks.some((check) => check.status === 'FAIL')
+  return { ok: !failed, checks }
+}
+
+/** Render a human-readable report. */
+export function formatReport(report: DoctorReport): string {
+  const lines = report.checks.map((check) => `[${check.status}] ${check.name}: ${check.detail}`)
+  lines.push(report.ok ? '✅ ALL CHECKS PASSED' : '❌ SOME CHECKS FAILED')
+  return lines.join('\n')
+}
