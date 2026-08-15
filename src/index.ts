@@ -98,6 +98,47 @@ export function checkManifestBom(profileDir: string): CheckResult {
   return { name: 'manifest-bom', status: 'PASS', detail: 'profile manifest has no UTF-8 BOM' }
 }
 
+/**
+ * Session-size tripwire for the #1859 class: a single giant event log can
+ * blow past V8's ~512 MB string cap during search-index reconciliation.
+ * Reports the largest files in a profile (skipping dependency trees) so
+ * operators get warned before the cliff.
+ */
+export function checkLargeFiles(profileDir: string, thresholdBytes = 100 * 1024 * 1024): CheckResult {
+  const SKIP_DIRS = new Set(['node_modules', '.pnpm', '.git', '.store'])
+  const large: { rel: string; size: number }[] = []
+  const walk = (dir: string, depth: number): void => {
+    if (depth > 5) return
+    let entries: string[] = []
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      if (SKIP_DIRS.has(entry)) continue
+      const full = path.join(dir, entry)
+      try {
+        const stat = statSync(full)
+        if (stat.isDirectory()) walk(full, depth + 1)
+        else if (stat.size >= thresholdBytes) large.push({ rel: path.relative(profileDir, full), size: stat.size })
+      } catch { /* unreadable */ }
+    }
+  }
+  walk(profileDir, 0)
+  if (large.length === 0) {
+    return { name: 'large-files', status: 'PASS', detail: `no files >= ${thresholdBytes} bytes in profile` }
+  }
+  const top = large.sort((a, b) => b.size - a.size).slice(0, 5)
+  return {
+    name: 'large-files',
+    status: 'WARN',
+    detail: `large files in profile (session logs can hit the ~512 MB stringify cap, discussion #1859): `
+      + top.map((f) => `${f.rel} (${(f.size / 1048576).toFixed(1)} MB)`).join('; ')
+      + ' — consider archiving or compacting large sessions.',
+  }
+}
+
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx'])
 
 const PRE_EXECUTE_RE = /\bpre[_-]?execute\b/i
