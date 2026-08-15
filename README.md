@@ -25,6 +25,7 @@ It works in two ways:
 | `pack` + `install` + `config` | `pnpm pack`, install into a fresh `DSH_HOME` profile, and confirm the plugin id in `--dump-config` | `--full` |
 | `profile-shadow` | a dsh profile has no real-directory `@deepseek-ai/*` copy shadowing the host instance (discussion #1697) | `--profile <dir>` |
 | `manifest-bom` | a dsh profile's `package.json` has no UTF-8 BOM (crashes `dsh web` at boot, discussion #1842) | `--profile <dir>` |
+| `large-files` | no profile file exceeds 100 MB (session logs can hit the ~512 MB stringify cap, discussion #1859) | `--profile <dir>` |
 | `pre-execute-side-effects` | pre-execute listeners do not run host-level side effects before approval (heuristic lint, discussion #1863) | default pipeline |
 | `node` / `pnpm` / `dsh-path` / `port-3080` / `win-bash` | environment diagnostics: toolchain on PATH, Web UI port free, and Windows bash resolvable for the minimal preset (discussion #1856) | `--env` |
 
