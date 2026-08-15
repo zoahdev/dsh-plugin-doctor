@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { parseArgs } from 'node:util'
+import { checkEnvironment, formatEnvReport } from './env.js'
 import { checkProfileShadowing, doctor, formatReport } from './index.js'
 
 const { values, positionals } = parseArgs({
@@ -10,6 +11,7 @@ const { values, positionals } = parseArgs({
     json: { type: 'boolean', default: false },
     timeout: { type: 'string', default: '120000' },
     profile: { type: 'string', default: '' },
+    env: { type: 'boolean', default: false },
     help: { type: 'boolean', default: false },
   },
   allowPositionals: true,
@@ -26,9 +28,21 @@ Options:
   --json        output machine-readable JSON
   --timeout N   command timeout in ms (default 120000)
   --profile P   check a dsh profile for host-shadowing @deepseek-ai copies
+  --env         run environment diagnostics (node/pnpm/dsh PATH, web port)
   --help        show this help
 `)
   process.exit(0)
+}
+
+if (values.env) {
+  const checks = await checkEnvironment(3080, Number(values.timeout ?? 120000))
+  const report = { ok: checks.every((check) => check.status !== 'FAIL'), checks }
+  if (values.json) {
+    console.log(JSON.stringify(report, null, 2))
+  } else {
+    console.log(formatEnvReport(checks))
+  }
+  process.exit(report.ok ? 0 : 1)
 }
 
 if (values.profile !== undefined && values.profile !== '') {
