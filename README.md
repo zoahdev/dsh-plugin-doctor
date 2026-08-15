@@ -101,6 +101,15 @@ This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-pl
 
 ### CI
 
+For plugin authors, the same checks ship as a one-line GitHub Action:
+
+```yaml
+- uses: zoahdev/dsh-plugin-doctor-action@v1
+  with: { path: . }
+```
+
+See [zoahdev/dsh-plugin-doctor-action](https://github.com/zoahdev/dsh-plugin-doctor-action).
+
 The repository CI runs:
 
 `pnpm install --frozen-lockfile` → `typecheck` → `build` → unit tests → **packaged plugin-shell smoke** (pack → fresh host install → load `lib/plugin.js` → register `plugin_check` → call the real handler → assert result) → CLI smoke → **full doctor self-check** (pack → fresh `DSH_HOME` profile → `dsh plugin add` → `--dump-config`).
