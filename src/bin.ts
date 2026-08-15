@@ -7,6 +7,8 @@ import {
   checkEntryPoints,
   checkLargeFiles,
   checkManifestBom,
+  checkNativeModules,
+  checkProfileDeps,
   checkProfileShadowing,
   doctor,
   formatReport,
@@ -81,6 +83,8 @@ if (values.profile !== undefined && values.profile !== '') {
     checkManifestBom(values.profile),
     checkLargeFiles(values.profile),
     checkEntryPoints(values.profile),
+    checkProfileDeps(values.profile),
+    checkNativeModules(values.profile),
   ]
   const status = checks.some((c) => c.status === 'FAIL') ? 2 : checks.some((c) => c.status === 'WARN') ? 1 : 0
   const envelope = {
