@@ -73,6 +73,31 @@ export function checkProfileShadowing(profileDir: string): CheckResult {
   }
 }
 
+/**
+ * Check a dsh profile's package.json for a UTF-8 BOM. dsh's
+ * `readProfileManifest` (packages/boot/app-boot/src/profile.ts:267-272)
+ * parses with `JSON.parse(readFileSync(path, 'utf8'))`, and a leading U+FEFF
+ * crashes `dsh web` at boot with `Unexpected token` (discussion #1842).
+ * @param profileDir - absolute path of the dsh profile to inspect.
+ */
+export function checkManifestBom(profileDir: string): CheckResult {
+  const file = path.join(profileDir, 'package.json')
+  if (!existsSync(file)) {
+    return { name: 'manifest-bom', status: 'WARN', detail: `profile manifest not found at ${file}` }
+  }
+  const bytes = readFileSync(file)
+  const hasBom = bytes.length >= 3 && bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
+  if (hasBom) {
+    return {
+      name: 'manifest-bom',
+      status: 'FAIL',
+      detail: `profile manifest ${file} starts with a UTF-8 BOM; dsh web crashes at boot (discussion #1842). `
+        + 'Re-save the file as UTF-8 without BOM (or strip the first three bytes).',
+    }
+  }
+  return { name: 'manifest-bom', status: 'PASS', detail: 'profile manifest has no UTF-8 BOM' }
+}
+
 export interface ManifestView {
   name?: string
   version?: string
