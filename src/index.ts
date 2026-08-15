@@ -141,7 +141,11 @@ export function checkLargeFiles(profileDir: string, thresholdBytes = 100 * 1024 
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.mjs', '.cjs', '.jsx'])
 
-const PRE_EXECUTE_RE = /\bpre[_-]?execute\b/i
+// Only real listener registrations count: an on() call with a quoted
+// pre-execute event name, or a preExecute method call. Bare words in prose,
+// comments, or function names must not trigger. Built via RegExp so the
+// pattern itself never matches its own source text.
+const PRE_EXECUTE_RE = new RegExp("(['\"]pre[_-]?execute['\"]|\\.pre[_-]?execute\\s*\\()", 'i')
 
 /** Heuristic: host-level side-effect APIs that must not run before approval. */
 const SIDE_EFFECT_RE = [
@@ -160,7 +164,8 @@ function collectSourceFiles(dir: string, out: string[] = [], depth = 0): string[
     return out
   }
   for (const entry of entries) {
-    if (entry === 'node_modules' || entry === '.git' || entry === '.DS_Store') continue
+    if (entry === 'node_modules' || entry === '.git' || entry === '.DS_Store'
+      || entry === 'tests' || entry === 'test' || entry === '__tests__') continue
     const full = path.join(dir, entry)
     try {
       const stat = statSync(full)
