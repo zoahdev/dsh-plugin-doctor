@@ -1,15 +1,27 @@
 {
   "name": "dsh-plugin-doctor",
-  "version": "1.0.0",
-  "description": "Health checks for DeepSeek Harness plugins: manifest structure, patch validity, entry points, build, pack, and a real dsh install/boot smoke test.",
+  "version": "1.1.0",
+  "description": "Health checks for DeepSeek Harness plugins: manifest structure, patch validity, entry points, build, pack, a real dsh install/config smoke test, plus a model-callable plugin_check tool.",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./plugin": {
+      "types": "./lib/types/plugin.d.ts",
+      "default": "./lib/plugin.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "dsh-plugin-doctor": "lib/bin.js"
   },
   "files": [
     "lib",
+    "cordis.patch.yml",
     "README.md",
     "LICENSE"
   ],
@@ -17,7 +29,8 @@
     "build": "tsc -p tsconfig.json",
     "prepare": "pnpm run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "node scripts/plugin-smoke.mjs"
   },
   "keywords": [
     "deepseek-harness",
@@ -28,13 +41,25 @@
     "cli"
   ],
   "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+  },
   "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.1",
     "js-yaml": "^4.2.0"
   },
   "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.20.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.8"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
   }
 }

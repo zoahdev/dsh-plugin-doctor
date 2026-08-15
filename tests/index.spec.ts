@@ -9,7 +9,7 @@ describe('readManifest', () => {
 
   it('summarizes a valid bundle manifest', () => {
     const view = readManifest(fileURLToPath(new URL('..', import.meta.url)))
-    expect(view?.dshBundle).toBe(false) // doctor itself is not a bundle
+    expect(view?.dshBundle).toBe(true) // doctor ships a plugin shell (dsh.bundle + cordis.patch.yml)
     expect(view?.name).toBe('dsh-plugin-doctor')
   })
 })

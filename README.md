@@ -2,9 +2,16 @@
 
 [English](#english) · [中文](#中文)
 
+## English
+
 Health checks for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugins — the practical answer to the `dsh plugin check` idea from [RFC #1629](https://github.com/deepseek-ai/deepseek-harness/discussions/1629), until the official command exists.
 
-## What it checks
+It works in two ways:
+
+- **CLI** (`dsh-plugin-doctor` / `node lib/bin.js`) — run it in your terminal or CI before opening a PR.
+- **Plugin shell** (`dsh plugin add`) — once installed in DeepSeek Harness, the agent can call the `plugin_check` tool directly: "check whether this plugin is ready to publish", no shell needed.
+
+### What it checks
 
 | Check | What it verifies | Default |
 |---|---|---|
@@ -13,42 +20,77 @@ Health checks for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-har
 | `entry` | `main` target exists (warns when not built yet) | ✅ |
 | `files` | a `files` allowlist is declared | ✅ |
 | `build` | `pnpm run build` succeeds | `--build` |
-| `pack` + `install` + `boot` | `pnpm pack`, install into a fresh `DSH_HOME` profile, and confirm the plugin id in `--dump-config` | `--full` |
+| `pack` + `install` + `config` | `pnpm pack`, install into a fresh `DSH_HOME` profile, and confirm the plugin id in `--dump-config` | `--full` |
 
 Exit code is `0` when nothing failed, `1` otherwise. `--json` prints a machine-readable report for CI.
 
-## Usage
+### CLI usage
 
 ```sh
-dsh-plugin-doctor .                 # quick checks on the current directory
-dsh-plugin-doctor --build ./my-plugin
-dsh-plugin-doctor --full ./my-plugin
-dsh-plugin-doctor --json ./my-plugin
-dsh-plugin-doctor --help
+npx dsh-plugin-doctor .                 # quick checks on the current directory
+npx dsh-plugin-doctor --build ./my-plugin
+npx dsh-plugin-doctor --full ./my-plugin
+npx dsh-plugin-doctor --json ./my-plugin
+npx dsh-plugin-doctor --help
 ```
 
-Run without installing (after `pnpm build`):
+Run from the repo without installing (after `pnpm build`):
 
 ```sh
 node lib/bin.js --full ./my-plugin
 ```
 
-## Why it exists
+### Plugin usage (agent-callable)
+
+Install the plugin into a DeepSeek Harness profile:
+
+```sh
+dsh plugin --profile web add dsh-plugin-doctor   # from npm
+# or from a local build:
+dsh plugin --profile web add ./dsh-plugin-doctor-1.1.0.tgz
+```
+
+Then ask the agent inside DSH:
+
+> 检查一下这个插件能不能发布 —— 先跑 build，再做完整验证。
+> Check whether this plugin is ready to publish — run the build first, then do a full verification.
+
+The agent calls the `plugin_check` tool (`dir`, optional `build`/`full` flags). The tool returns PASS/WARN/FAIL per check plus an overall `ok` flag.
+
+### What "full" really proves
+
+`--full` does not just load the bundle. It:
+
+1. runs `pnpm pack` on the real project;
+2. creates a fresh `DSH_HOME` profile (no pollution of your real one);
+3. runs `dsh plugin add <tarball>`;
+4. runs `dsh --dump-config` and asserts the plugin id from `cordis.patch.yml` actually appears in the composed config.
+
+This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) maintainers use when they review plugin PRs.
+
+### Why it exists
 
 - pnpm can silently link an older RC into a plugin's peer slot, and "loads fine" does not mean "works" (see the [template](https://github.com/zoahdev/dsh-plugin-template) runtime guard and [troubleshooting](https://github.com/zoahdev/dsh-plugin-template#troubleshooting)).
 - A repeatable local check (manifest → build → install → config) catches the failures that only show up on other people's machines.
-- The `dsh web` boot step runs on Windows in CI because the upstream npm CLI currently lacks the linux-x64 `pty.node` prebuild ([discussion #1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)).
+- The `dsh web` boot step currently runs on Windows in CI because the upstream npm CLI lacks the linux-x64 `pty.node` prebuild ([discussion #1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)); doctor's install/config verification is platform-independent.
 
-## Development
+### CI
+
+The repository CI runs:
+
+`pnpm install --frozen-lockfile` → `typecheck` → `build` → unit tests → **packaged plugin-shell smoke** (pack → fresh host install → load `lib/plugin.js` → register `plugin_check` → call the real handler → assert result) → CLI smoke → **full doctor self-check** (pack → fresh `DSH_HOME` profile → `dsh plugin add` → `--dump-config`).
+
+### Development
 
 ```sh
 pnpm install
 pnpm typecheck
 pnpm build
 pnpm test
+pnpm test:integration
 ```
 
-## License
+### License
 
 MIT © 2026 zoahdev
 
@@ -58,7 +100,12 @@ MIT © 2026 zoahdev
 
 **dsh-plugin-doctor** —— [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件的健康检查工具，是 [RFC #1629](https://github.com/deepseek-ai/deepseek-harness/discussions/1629) 中 `dsh plugin check` 提案在官方命令落地前的实际实现。
 
-## 检查项
+它有两种使用方式：
+
+- **CLI**（`dsh-plugin-doctor` / `node lib/bin.js`）——在终端或 CI 里跑，适合提 PR 前自检。
+- **插件外壳**（`dsh plugin add`）——装进 DeepSeek Harness 后，agent 可以直接调用 `plugin_check` 工具：说一句"检查一下我这个插件能不能发"，不用切到终端。
+
+### 检查项
 
 | 检查 | 验证内容 | 默认 |
 |---|---|---|
@@ -67,18 +114,18 @@ MIT © 2026 zoahdev
 | `entry` | `main` 指向的文件存在（未构建时给 WARN） | ✅ |
 | `files` | 声明了 `files` 白名单 | ✅ |
 | `build` | `pnpm run build` 成功 | `--build` |
-| `pack`+`install`+`boot` | `pnpm pack`，装进全新 `DSH_HOME` profile，并在 `--dump-config` 里确认插件 id | `--full` |
+| `pack`+`install`+`config` | `pnpm pack`，装进全新 `DSH_HOME` profile，并在 `--dump-config` 里确认插件 id | `--full` |
 
 退出码：全部通过为 `0`，否则为 `1`。`--json` 输出机器可读报告，方便接入 CI。
 
-## 用法
+### CLI 用法
 
 ```sh
-dsh-plugin-doctor .                 # 对当前目录做快速检查
-dsh-plugin-doctor --build ./my-plugin
-dsh-plugin-doctor --full ./my-plugin
-dsh-plugin-doctor --json ./my-plugin
-dsh-plugin-doctor --help
+npx dsh-plugin-doctor .                 # 对当前目录做快速检查
+npx dsh-plugin-doctor --build ./my-plugin
+npx dsh-plugin-doctor --full ./my-plugin
+npx dsh-plugin-doctor --json ./my-plugin
+npx dsh-plugin-doctor --help
 ```
 
 不全局安装也可以（先 `pnpm build`）：
@@ -87,21 +134,55 @@ dsh-plugin-doctor --help
 node lib/bin.js --full ./my-plugin
 ```
 
-## 为什么需要它
+### 插件用法（agent 可直接调用）
+
+装进 DeepSeek Harness profile：
+
+```sh
+dsh plugin --profile web add dsh-plugin-doctor   # 从 npm 安装
+# 或本地构建产物：
+dsh plugin --profile web add ./dsh-plugin-doctor-1.1.0.tgz
+```
+
+然后在 DSH 里直接对 agent 说：
+
+> 检查一下这个插件能不能发布 —— 先跑 build，再做完整验证。
+
+agent 会调用 `plugin_check` 工具（参数 `dir`，可选 `build`/`full`），逐项返回 PASS/WARN/FAIL 和整体 `ok` 标志。
+
+### `--full` 真正验证了什么
+
+不是"能加载"就算过，而是：
+
+1. 对真实项目执行 `pnpm pack`；
+2. 创建全新 `DSH_HOME` profile（不污染真实配置）；
+3. 执行 `dsh plugin add <tarball>`；
+4. 执行 `dsh --dump-config`，断言 `cordis.patch.yml` 里的插件 id 真的出现在合成配置里。
+
+这条路径与 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) 维护者人工审插件 PR 的流程一致。
+
+### 为什么需要它
 
 - pnpm 可能把旧 RC 静默链进插件的 peer 槽；"能加载"不等于"能用"（参见[模板](https://github.com/zoahdev/dsh-plugin-template)的运行时守卫与[故障排查](https://github.com/zoahdev/dsh-plugin-template#troubleshooting)）。
 - 本地可重复检查（manifest → build → 安装 → 配置）能提前抓出只在别人机器上才会爆的错。
-- 因为上游 npm CLI 目前缺 linux-x64 的 `pty.node` 预编译（[#1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)），`dsh web` 启动冒烟在 CI 的 Windows runner 上执行。
+- 因为上游 npm CLI 目前缺 linux-x64 的 `pty.node` 预编译（[#1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)），`dsh web` 启动冒烟在 CI 的 Windows runner 上执行；doctor 的安装/配置验证与平台无关。
 
-## 开发
+### CI
+
+仓库 CI 完整流程：
+
+`pnpm install --frozen-lockfile` → `typecheck` → `build` → 单元测试 → **打包插件外壳冒烟**（pack → 全新宿主安装 → 加载 `lib/plugin.js` → 注册 `plugin_check` → 真实调用 handler → 断言结果）→ CLI 冒烟 → **doctor 自检**（pack → 全新 `DSH_HOME` profile → `dsh plugin add` → `--dump-config`）。
+
+### 开发
 
 ```sh
 pnpm install
 pnpm typecheck
 pnpm build
 pnpm test
+pnpm test:integration
 ```
 
-## 许可证
+### 许可证
 
 MIT © 2026 zoahdev

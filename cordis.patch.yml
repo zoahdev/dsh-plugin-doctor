@@ -1,0 +1,5 @@
+- insert:
+    - id: doctor
+      name: dsh-plugin-doctor/plugin
+      config:
+        timeoutMs: 120000
