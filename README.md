@@ -45,6 +45,8 @@ npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile tripwire: host-shadowing + manifest BOM
 npx dsh-plugin-doctor --env                            # environment diagnostics (node/pnpm/dsh PATH, port 3080)
 npx dsh-plugin-doctor --env --port 8090                # probe a custom web port instead
+npx dsh-plugin-doctor env explain DEEPSEEK_API_KEY      # secret-safe env provenance (RFC #1953)
+npx dsh-plugin-doctor env explain MY_KEY --json         # machine-readable envelope; value always [redacted]
 npx dsh-plugin-doctor --help
 ```
 
@@ -156,6 +158,7 @@ npx dsh-plugin-doctor --json ./my-plugin
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile 级宿主遮蔽 tripwire
 npx dsh-plugin-doctor --env                            # 环境诊断（node/pnpm/dsh PATH、3080 端口）
 npx dsh-plugin-doctor --env --port 8090                # 探测自定义端口
+npx dsh-plugin-doctor env explain DEEPSEEK_API_KEY      # 密钥安全的环境变量源大排查（RFC #1953）
 npx dsh-plugin-doctor --help
 ```
 
