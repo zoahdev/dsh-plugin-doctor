@@ -80,6 +80,10 @@ This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-pl
 - A profile-hoisted real-directory copy of `@deepseek-ai/dsh-tools` can shadow the host instance and crash every tool call ([discussion #1697](https://github.com/deepseek-ai/deepseek-harness/discussions/1697)); `--profile` flags exactly that precondition before anything boots.
 - Environment friction (missing pnpm, Node version, PATH, occupied web port) is the other big setup-time failure class; `--env` turns it into one command (the `dsh doctor` idea from [discussion #1719](https://github.com/deepseek-ai/deepseek-harness/discussions/1719)).
 
+### Related community tools
+
+- [moonquake2004/dsh-doctor](https://github.com/moonquake2004/dsh-doctor) — offline profile/session/env diagnostics with 19 checks mapped to community failure reports. Complementary: dsh-plugin-doctor covers the pre-publish plugin path, dsh-doctor covers the offline profile/session path. Its P5 check and our `profile-shadow` check flag the same host-shadowing precondition from two sides.
+
 ### CI
 
 The repository CI runs:
@@ -178,6 +182,10 @@ agent 会调用 `plugin_check` 工具（参数 `dir`，可选 `build`/`full`）�
 - 因为上游 npm CLI 目前缺 linux-x64 的 `pty.node` 预编译（[#1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)），`dsh web` 启动冒烟在 CI 的 Windows runner 上执行；doctor 的安装/配置验证与平台无关。
 - profile 顶层若出现真实目录形式的 `@deepseek-ai/dsh-tools` 副本，会遮蔽宿主实例并让每次工具调用崩溃（[#1697](https://github.com/deepseek-ai/deepseek-harness/discussions/1697)）；`--profile` 在启动前就能把这个前置条件抓出来。
 - 环境类故障（缺 pnpm、Node 版本、PATH、Web 端口被占）是另一大 setup 期痛点；`--env` 一条命令全查（[#1719](https://github.com/deepseek-ai/deepseek-harness/discussions/1719) 的 `dsh doctor` 设想）。
+
+### 相关社区工具
+
+- [moonquake2004/dsh-doctor](https://github.com/moonquake2004/dsh-doctor) —— 离线 profile/session/env 诊断（19 项检查，映射到社区故障报告）。与 dsh-plugin-doctor 互补：我们管发布前插件路径，它管离线 profile/session 路径；它的 P5 检查与我们的 `profile-shadow` 检查从两个方向标记同一个宿主遮蔽前置条件。
 
 ### CI
 
