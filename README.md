@@ -27,6 +27,8 @@ It works in two ways:
 | `manifest-bom` | a dsh profile's `package.json` has no UTF-8 BOM (crashes `dsh web` at boot, discussion #1842) | `--profile <dir>` |
 | `large-files` | no profile file exceeds 100 MB (session logs can hit the ~512 MB stringify cap, discussion #1859) | `--profile <dir>` |
 | `entry-points` | every installed plugin's `main`/`exports` target exists (source-copy installs without a build crash `dsh web` at boot, discussion #1965) | `--profile <dir>` |
+| `profile-deps` | the runtime `@deepseek-ai` scope is present (a bare `npm install` in a profile dir prunes the shared tree, discussion #2081) | `--profile <dir>` |
+| `native-modules` | `koffi`/`node-pty` are present in the runtime tree (npm 11 `allow-scripts=false` skips native builds, discussion #2081) | `--profile <dir>` |
 | `pre-execute-side-effects` | pre-execute listeners do not run host-level side effects before approval (heuristic lint, discussion #1863) | default pipeline |
 | `shell-launcher` | child_process usage does not invoke explorer/start/open/powershell/cmd surfaces that can bypass approval/workspace limits (heuristic, discussions #1923/#1863) | default pipeline |
 | `node` / `pnpm` / `dsh-path` / `port-3080` / `win-bash` | environment diagnostics: toolchain on PATH, Web UI port free, and Windows bash resolvable for the minimal preset (discussion #1856) | `--env` |
