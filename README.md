@@ -24,6 +24,7 @@ It works in two ways:
 | `build` | `pnpm run build` succeeds | `--build` |
 | `pack` + `install` + `config` | `pnpm pack`, install into a fresh `DSH_HOME` profile, and confirm the plugin id in `--dump-config` | `--full` |
 | `profile-shadow` | a dsh profile has no real-directory `@deepseek-ai/*` copy shadowing the host instance (discussion #1697) | `--profile <dir>` |
+| `manifest-bom` | a dsh profile's `package.json` has no UTF-8 BOM (crashes `dsh web` at boot, discussion #1842) | `--profile <dir>` |
 | `node` / `pnpm` / `dsh-path` / `port-3080` | environment diagnostics: toolchain on PATH and the Web UI port free (the `dsh doctor` idea from discussion #1719) | `--env` |
 
 Exit code is `0` when nothing failed, `1` otherwise. `--json` prints a machine-readable report for CI.
@@ -36,7 +37,7 @@ npx dsh-plugin-doctor --build ./my-plugin
 npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor preflight ./my-plugin       # alias: build + full pipeline (discussion #1774)
 npx dsh-plugin-doctor --json ./my-plugin
-npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile-level host-shadowing tripwire
+npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile tripwire: host-shadowing + manifest BOM
 npx dsh-plugin-doctor --env                            # environment diagnostics (node/pnpm/dsh PATH, port 3080)
 npx dsh-plugin-doctor --env --port 8090                # probe a custom web port instead
 npx dsh-plugin-doctor --help
@@ -55,7 +56,7 @@ Install the plugin into a DeepSeek Harness profile:
 ```sh
 dsh plugin --profile web add dsh-plugin-doctor   # from npm
 # or from a local build:
-dsh plugin --profile web add ./dsh-plugin-doctor-1.5.0.tgz
+dsh plugin --profile web add ./dsh-plugin-doctor-1.6.0.tgz
 ```
 
 Then ask the agent inside DSH:
@@ -84,6 +85,7 @@ This is the same path the [awesome-dsh-plugin](https://github.com/awesome-dsh-pl
 - A repeatable local check (manifest → build → install → config) catches the failures that only show up on other people's machines.
 - The `dsh web` boot step currently runs on Windows in CI because the upstream npm CLI lacks the linux-x64 `pty.node` prebuild ([discussion #1686](https://github.com/deepseek-ai/deepseek-harness/discussions/1686)); doctor's install/config verification is platform-independent.
 - A profile-hoisted real-directory copy of `@deepseek-ai/dsh-tools` can shadow the host instance and crash every tool call ([discussion #1697](https://github.com/deepseek-ai/deepseek-harness/discussions/1697)); `--profile` flags exactly that precondition before anything boots.
+- A UTF-8 BOM in a profile's `package.json` crashes `dsh web` at boot with `Unexpected token` ([discussion #1842](https://github.com/deepseek-ai/deepseek-harness/discussions/1842)); the `manifest-bom` check catches it before boot.
 - Environment friction (missing pnpm, Node version, PATH, occupied web port) is the other big setup-time failure class; `--env` turns it into one command (the `dsh doctor` idea from [discussion #1719](https://github.com/deepseek-ai/deepseek-harness/discussions/1719)).
 
 ### Related community tools
