@@ -13,6 +13,7 @@ import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync, 
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
+import { decodeSession, findBrokenToolCalls, type BrokenToolCall } from './session-log.js'
 
 export interface CheckResult {
   name: string
@@ -261,6 +262,61 @@ export function checkNativeModules(profileDir: string): CheckResult {
     status: 'WARN',
     detail: `native modules possibly missing from the runtime tree: ${missing.join(', ')}. `
       + 'npm 11 defaults allow-scripts=false, so native builds can be skipped (discussion #2081); reinstall with --allow-scripts=... if the native build is missing.',
+  }
+}
+
+/**
+ * Broken tool-call tripwire for the #2334 class: a tool call that is declared
+ * but never receives a paired result leaves a broken message sequence that
+ * makes every following turn fail (and new sessions inherit it). Decodes any
+ * session logs under `dir` and reports call ids with no matching result.
+ * @param dir - directory to scan for `session.jsonl(.zstd)` files.
+ */
+export function checkToolCallPairing(dir: string): CheckResult {
+  const root = path.resolve(dir)
+  const sessionFiles: string[] = []
+  const walk = (d: string, depth: number): void => {
+    if (depth > 5) return
+    let entries: string[] = []
+    try { entries = readdirSync(d) } catch { return }
+    for (const entry of entries) {
+      if (entry === 'node_modules' || entry === '.git') continue
+      const full = path.join(d, entry)
+      try {
+        const s = statSync(full)
+        if (s.isDirectory()) walk(full, depth + 1)
+        else if (entry === 'session.jsonl' || entry === 'session.jsonl.zstd') sessionFiles.push(full)
+      } catch { /* unreadable */ }
+    }
+  }
+  walk(root, 0)
+  if (sessionFiles.length === 0) {
+    return { name: 'tool-call-pairing', status: 'PASS', detail: `no session logs found under ${root}` }
+  }
+  const broken: string[] = []
+  for (const file of sessionFiles) {
+    let calls: BrokenToolCall[]
+    try {
+      calls = findBrokenToolCalls(decodeSession(file).events)
+    } catch {
+      continue // unreadable/corrupt session is a different check
+    }
+    for (const c of calls) {
+      broken.push(`${path.basename(path.dirname(file))}/${path.basename(file)}#${c.callId}`)
+    }
+  }
+  if (broken.length === 0) {
+    return {
+      name: 'tool-call-pairing',
+      status: 'PASS',
+      detail: `checked ${sessionFiles.length} session log(s); no broken tool-call sequences`,
+    }
+  }
+  return {
+    name: 'tool-call-pairing',
+    status: 'FAIL',
+    detail: `broken tool-call sequence(s) (declared but no paired result, discussion #2334): ${broken.slice(0, 8).join(', ')}`
+      + (broken.length > 8 ? ` (+${broken.length - 8} more)` : ''),
   }
 }
 
