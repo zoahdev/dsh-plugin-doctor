@@ -77,6 +77,14 @@ export declare function checkProfileDeps(profileDir: string): CheckResult;
  */
 export declare function checkNativeModules(profileDir: string): CheckResult;
 /**
+ * Broken tool-call tripwire for the #2334 class: a tool call that is declared
+ * but never receives a paired result leaves a broken message sequence that
+ * makes every following turn fail (and new sessions inherit it). Decodes any
+ * session logs under `dir` and reports call ids with no matching result.
+ * @param dir - directory to scan for `session.jsonl(.zstd)` files.
+ */
+export declare function checkToolCallPairing(dir: string): CheckResult;
+/**
  * Heuristic lint for the #1863 class: a `pre-execute` listener that performs
  * host-level side effects before returning `ask` defeats approval (approval
  * is consent UX, not a sandbox). Flags side-effect APIs in files that
