@@ -1,5 +1,8 @@
 # dsh-plugin-doctor
 
+[![CI](https://github.com/zoahdev/dsh-plugin-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/dsh-plugin-doctor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 [![CI](https://github.com/zoahdev/dsh-plugin-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/dsh-plugin-doctor/actions) [![Release](https://img.shields.io/github/v/release/zoahdev/dsh-plugin-doctor)](https://github.com/zoahdev/dsh-plugin-doctor/releases)
 
 [English](#english) · [中文](#中文)
