@@ -10,6 +10,7 @@ import {
   checkNativeModules,
   checkProfileDeps,
   checkProfileShadowing,
+  checkToolCallPairing,
   doctor,
   formatReport,
 } from './index.js'
@@ -85,6 +86,7 @@ if (values.profile !== undefined && values.profile !== '') {
     checkEntryPoints(values.profile),
     checkProfileDeps(values.profile),
     checkNativeModules(values.profile),
+    checkToolCallPairing(values.profile),
   ]
   const status = checks.some((c) => c.status === 'FAIL') ? 2 : checks.some((c) => c.status === 'WARN') ? 1 : 0
   const envelope = {
