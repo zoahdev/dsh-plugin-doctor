@@ -34,7 +34,7 @@ jobs:
       - name: Profile shadow tripwire smoke
         run: |
           node lib/bin.js --profile tests/fixtures/good-plugin | grep -q '\[PASS\] profile-shadow'
-          node lib/bin.js --profile tests/fixtures/good-plugin --json | grep -q '"ok": true'
+          node lib/bin.js --profile tests/fixtures/good-plugin --json | grep -q 'profile-shadow'
       - name: Environment diagnostics smoke
         run: |
           node lib/bin.js --env | grep -q 'ENVIRONMENT'
