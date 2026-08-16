@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-doctor",
-  "version": "1.14.0",
-  "description": "Health checks for DeepSeek Harness: plugin manifest/patch/entry/build/pack/install verification, model-callable plugin_check, profile host-shadowing + manifest-BOM detection, and environment diagnostics (node/pnpm/dsh PATH, web port).",
+  "version": "1.15.0",
+  "description": "Health checks for DeepSeek Harness: manifest/patch/entry/build/pack/install verification, model-callable plugin_check, profile host-shadowing + manifest-BOM detection, environment diagnostics (node/pnpm/dsh PATH, web port), and supply-chain poison preflight (delegates to dsh-poison-guard).",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -39,7 +39,9 @@
     "plugin",
     "doctor",
     "health-check",
-    "cli"
+    "cli",
+    "security",
+    "supply-chain"
   ],
   "license": "MIT",
   "peerDependencies": {
