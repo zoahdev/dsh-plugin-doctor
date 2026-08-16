@@ -8,7 +8,7 @@
  * @module dsh-plugin-doctor
  */
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -393,6 +393,70 @@ export function checkShellLauncher(dir: string): CheckResult {
   }
 }
 
+/**
+ * Supply-chain poison preflight for the #1629/#1719 class: delegate to the
+ * `dsh-poison-guard` scanner (AST + deobfuscation) when it is installed, and
+ * degrade to a WARN with install instructions when it is not. Keeping this a
+ * soft dependency leaves the doctor lightweight while still giving every
+ * plugin author an AST-grade poisoning check before publish.
+ * @param dir - plugin bundle directory to scan.
+ */
+export function checkSupplyChainSecurity(dir: string): CheckResult {
+  const root = path.resolve(dir)
+  const probe = process.platform === 'win32'
+    ? spawnSync(`dsh-poison-guard scan "${root}" --json`, { shell: true, windowsHide: true, encoding: 'utf8', timeout: 120_000 })
+    : spawnSync('dsh-poison-guard', ['scan', root, '--json'], { encoding: 'utf8', timeout: 120_000 })
+
+  if (probe.error !== undefined) {
+    return {
+      name: 'supply-chain-security',
+      status: 'WARN',
+      detail: 'dsh-poison-guard not found on PATH; supply-chain scan skipped. '
+        + 'Install it with `npm i -g dsh-poison-guard` (or add github:zoahdev/dsh-poison-guard to a profile) to enable AST + deobfuscation poisoning checks.',
+    }
+  }
+
+  interface PoisonFinding { severity?: string; rule?: string; file?: string; line?: number; hint?: string }
+  let report: { verdict?: string; summary?: string; findings?: PoisonFinding[] } = {}
+  try {
+    report = JSON.parse(probe.stdout) as typeof report
+  } catch {
+    return {
+      name: 'supply-chain-security',
+      status: 'WARN',
+      detail: `dsh-poison-guard produced unparseable output: ${probe.stdout.slice(0, 160)}`,
+    }
+  }
+
+  const verdict = report.verdict ?? 'UNKNOWN'
+  const findings = report.findings ?? []
+  const high = findings.filter((f) => f.severity === 'HIGH').length
+  const medium = findings.filter((f) => f.severity === 'MEDIUM').length
+  const low = findings.filter((f) => f.severity === 'LOW').length
+
+  if (verdict === 'MALICIOUS') {
+    const top = findings.slice(0, 3).map((f) => `${f.rule}@${f.file}:${f.line ?? 0}`).join('; ')
+    return {
+      name: 'supply-chain-security',
+      status: 'FAIL',
+      detail: `poison scan verdict MALICIOUS (${high} high / ${medium} medium / ${low} low). Top findings: ${top || '(none)'}. `
+        + 'Static analysis is not a guarantee — review the flagged code and never enable danger-full-access for untrusted plugins.',
+    }
+  }
+  if (verdict === 'SUSPICIOUS') {
+    return {
+      name: 'supply-chain-security',
+      status: 'WARN',
+      detail: `poison scan verdict SUSPICIOUS (${high} high / ${medium} medium / ${low} low). Review flagged patterns before publishing.`,
+    }
+  }
+  return {
+    name: 'supply-chain-security',
+    status: 'PASS',
+    detail: `poison scan verdict CLEAN (${findings.length} finding(s) at most informational). Static analysis is not a guarantee; keep untrusted plugins sandboxed.`,
+  }
+}
+
 export interface ManifestView {
   name?: string
   version?: string
@@ -540,6 +604,9 @@ export async function doctor(dir: string, options: DoctorOptions = {}): Promise<
 
   // 4.6 shell-launcher risk lint (#1923)
   checks.push(checkShellLauncher(root))
+
+  // 4.7 supply-chain poison scan (delegates to dsh-poison-guard when present)
+  checks.push(checkSupplyChainSecurity(root))
 
   // 5. build (optional)
   if (options.build === true) {
