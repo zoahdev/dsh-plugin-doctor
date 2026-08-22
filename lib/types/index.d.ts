@@ -7,6 +7,7 @@
  * dsh install/boot smoke test.
  * @module dsh-plugin-doctor
  */
+export * from './audit.js';
 export interface CheckResult {
     name: string;
     status: 'PASS' | 'WARN' | 'FAIL';

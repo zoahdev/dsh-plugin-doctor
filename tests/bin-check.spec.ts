@@ -25,4 +25,36 @@ describe('dsh-plugin-doctor check command (RFC #1846 surface)', () => {
     expect(Array.isArray(report.checks)).toBe(true)
     expect(report.checks.some((c: { name: string }) => c.name === 'entry')).toBe(true)
   })
+
+  it('prints the evidence-first audit envelope', () => {
+    const result = spawnSync(process.execPath, ['lib/bin.js', 'audit', '.', '--json'], { cwd: root, encoding: 'utf8' })
+    expect([0, 1, 2]).toContain(result.status)
+    const report = JSON.parse(result.stdout) as { schema: string; subject: { name?: string }; findings: unknown[] }
+    expect(report.schema).toBe('dsh-plugin-audit/v1')
+    expect(report.subject.name).toBe('dsh-plugin-doctor')
+    expect(Array.isArray(report.findings)).toBe(true)
+  })
+
+  it('prints a batch ecosystem envelope', () => {
+    const fixture = path.join(root, 'tests', 'fixtures', 'good-plugin')
+    const result = spawnSync(process.execPath, ['lib/bin.js', 'audit-batch', '.', fixture, '--json'], { cwd: root, encoding: 'utf8' })
+    expect([0, 1, 2]).toContain(result.status)
+    const report = JSON.parse(result.stdout) as { schema: string; summary: { totalPlugins: number } }
+    expect(report.schema).toBe('dsh-plugin-ecosystem-audit/v1')
+    expect(report.summary.totalPlugins).toBe(2)
+  })
+
+  it('flushes batch JSON larger than the default stdout buffer chunk before exiting', () => {
+    const fixture = path.join(root, 'tests', 'fixtures', 'good-plugin')
+    const repeated = Array.from({ length: 40 }, () => fixture)
+    const result = spawnSync(process.execPath, ['lib/bin.js', 'audit-batch', ...repeated, '--json'], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: 5 * 1024 * 1024,
+    })
+    expect([0, 1, 2]).toContain(result.status)
+    expect(result.stdout.length).toBeGreaterThan(65_536)
+    const report = JSON.parse(result.stdout) as { summary: { totalPlugins: number } }
+    expect(report.summary.totalPlugins).toBe(40)
+  })
 })

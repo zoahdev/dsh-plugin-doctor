@@ -15,6 +15,8 @@ import path from 'node:path'
 import { load as parseYaml } from 'js-yaml'
 import { decodeSession, findBrokenToolCalls, type BrokenToolCall } from './session-log.js'
 
+export * from './audit.js'
+
 export interface CheckResult {
   name: string
   status: 'PASS' | 'WARN' | 'FAIL'

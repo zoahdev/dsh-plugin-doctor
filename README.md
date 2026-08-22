@@ -38,6 +38,19 @@ It works in two ways:
 
 Exit code is `0` when nothing failed, `1` otherwise. `--json` prints a machine-readable report for CI.
 
+### Evidence-first plugin audit
+
+`audit` is a separate, read-only inspection mode. It never imports the target plugin, runs lifecycle scripts, installs dependencies, or contacts a registry. It reports:
+
+- package identity, source repository metadata, local Git revision when available, and a SHA-256 digest of the inspected content;
+- install/prepare/publish lifecycle scripts, declared dependency sources, and lifecycle scripts from locally installed direct dependencies;
+- every Cordis patch operation, the affected entry ids and configuration keys, runtime `!!js` expressions, and changes that disable approval or sandbox entries;
+- observed filesystem, network, process, environment, credential, dynamic-code, native-code, persistence, browser-storage, session-data, clipboard, and dynamic-module-loading capabilities;
+- findings with stable rule ids, severity, confidence, redacted file-and-line evidence, coverage gaps, and honest limitations;
+- upgrade differences when `--compare <old-directory>` is supplied.
+
+The scanner prefers the package's declared published `files` surface. When the declared main build output is absent, it falls back to the working tree and records that choice. Working-tree fallback skips tests, fixtures, examples, demos, ordinary JSON data, and undeclared development scripts; paths explicitly declared for publication are still scanned. Network combinations distinguish fixed external destinations from same-origin/loopback calls and dynamic destinations. Large generated bundles and source matches in distant file sections lower confidence because co-location is not proof of data flow.
+
 ### CLI usage
 
 ```sh
@@ -47,6 +60,10 @@ npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor preflight ./my-plugin       # alias: build + full pipeline (discussion #1774)
 npx dsh-plugin-doctor check ./my-plugin           # same pipeline; matches the proposed `dsh plugin check` surface (RFC #1846)
 npx dsh-plugin-doctor --json ./my-plugin
+npx dsh-plugin-doctor audit ./my-plugin
+npx dsh-plugin-doctor audit ./new-version --compare ./old-version --json
+npx dsh-plugin-doctor audit-batch ./plugins/plugin-a ./plugins/plugin-b --json
+npx dsh-plugin-doctor audit-batch ./plugins/* --markdown > plugin-ecosystem-audit.md
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile tripwire: host-shadowing + manifest BOM
 npx dsh-plugin-doctor --env                            # environment diagnostics (node/pnpm/dsh PATH, port 3080)
 npx dsh-plugin-doctor --env --port 8090                # probe a custom web port instead
@@ -161,6 +178,19 @@ MIT © 2026 zoahdev
 
 退出码：全部通过为 `0`，否则为 `1`。`--json` 输出机器可读报告，方便接入 CI。
 
+### 证据优先的插件审计
+
+`audit` 是独立的只读检测模式。它不会导入被检查插件，不会运行安装脚本，不会安装依赖，也不会访问软件仓库。报告包含：
+
+- 包名、版本、源码仓库、本地 Git 版本（如果可用），以及本次实际检查内容的 SHA-256 摘要；
+- install/prepare/publish 等安装生命周期脚本、依赖来源，以及本地已安装直接依赖的生命周期脚本；
+- Cordis 配置修改、受影响的 entry id 和配置键、运行时 `!!js` 表达式，以及关闭审批或沙箱的改动；
+- 文件、网络、进程、环境变量、凭据、动态代码、原生代码、持久化、浏览器存储、会话数据、剪贴板和动态模块加载等能力；
+- 稳定规则编号、严重程度、判断把握、经过脱敏的文件与行号证据、未覆盖范围和明确限制；
+- 使用 `--compare <旧版本目录>` 时生成升级前后差异。
+
+扫描器优先检查 package.json `files` 声明的实际发布内容。声明的主构建文件不存在时，才回退到工作目录，并在报告中写明。回退扫描会跳过测试、示例、普通 JSON 规则数据和未声明的开发脚本；明确声明为发布内容的路径仍会检查。联网组合会区分外部网站、地址不确定、同源接口和本机地址。大型打包文件或相距很远的代码片段会降低判断把握，因为代码放在一起不代表存在真实数据传递。
+
 ### CLI 用法
 
 ```sh
@@ -170,6 +200,10 @@ npx dsh-plugin-doctor --full ./my-plugin
 npx dsh-plugin-doctor preflight ./my-plugin       # 别名：build + 全链路（讨论 #1774）
 npx dsh-plugin-doctor check ./my-plugin           # 同 pipeline；对应 RFC #1846 的 `dsh plugin check` 命名
 npx dsh-plugin-doctor --json ./my-plugin
+npx dsh-plugin-doctor audit ./my-plugin
+npx dsh-plugin-doctor audit ./new-version --compare ./old-version --json
+npx dsh-plugin-doctor audit-batch ./plugins/plugin-a ./plugins/plugin-b --json
+npx dsh-plugin-doctor audit-batch ./plugins/* --markdown > plugin-ecosystem-audit.md
 npx dsh-plugin-doctor --profile ~/.dsh/profiles/web   # profile 级宿主遮蔽 tripwire
 npx dsh-plugin-doctor --env                            # 环境诊断（node/pnpm/dsh PATH、3080 端口）
 npx dsh-plugin-doctor --env --port 8090                # 探测自定义端口
